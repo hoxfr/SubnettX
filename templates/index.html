@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SubnettX | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (localStorage.getItem('subnettx_logged_user_id')) {
+            var cachedRole = localStorage.getItem('subnettx_session_role') || '';
+            var portalStyle = '';
+            if (cachedRole === 'faculty') {
+                portalStyle = '#portal-prof { display: block !important; } #portal-stud { display: none !important; }';
+            } else {
+                portalStyle = '#portal-stud { display: block !important; } #portal-prof { display: none !important; }';
+            }
+            document.write('<style>#login-overlay { display: none !important; } #main-app { display: flex !important; } ' + portalStyle + '</style>');
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @keyframes scan {
+            0%, 100% { top: 0%; }
+            50% { top: 100%; }
+        }
+        .laser-scanner {
+            width: 100%;
+            height: 3px;
+            background-color: rgba(5, 150, 105, 0.9);
+            position: absolute;
+            top: 0;
+            left: 0;
+            box-shadow: 0 0 15px 4px rgba(5, 150, 105, 0.7);
+            animation: scan 2s infinite linear;
+            display: none;
+            z-index: 10;
+        }
+        body { background-color: #f8fafc; color: #0f172a; font-family: 'Inter', sans-serif; }
+        .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .btn-primary { background: #0f172a; color: #ffffff; padding: 0.75rem 1.5rem; border-radius: 4px; font-weight: bold; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; transition: 0.2s; cursor: pointer; border: none; }
+        .btn-primary:hover { background: #1e293b; }
+        .input-field { width: 100%; border: 1px solid #cbd5e1; padding: 0.75rem; border-radius: 4px; font-size: 0.875rem; outline: none; background: #ffffff; }
+        .input-field:focus { border-color: #0f172a; }
+        /* Notification Panel */
+        .notif-panel { position: absolute; right: 0; top: 100%; width: 340px; max-height: 380px; overflow-y: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); z-index: 100; display: none; }
+        .notif-panel.open { display: block; }
+        .notif-item { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 0.75rem; color: #334155; line-height: 1.4; }
+        .notif-item:last-child { border-bottom: none; }
+        .notif-item.unread { background: #f0fdf4; }
+        /* Toast */
+        .toast-overlay { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999; pointer-events: none; }
+        .toast-msg { background: #065f46; color: white; padding: 0.75rem 1.25rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.2); opacity: 0; transform: translateY(-10px); transition: all 0.3s ease; pointer-events: none; display: none; }
+        .toast-msg.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    </style>
+</head>
+<body>
+    <!-- TOAST CONTAINER -->
+    <div class="toast-overlay">
+        <div id="global-toast" class="toast-msg"></div>
+    </div>
+
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay" class="fixed inset-0 bg-[#0f172a] flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+            <!-- Unified SubnettX Logo Crest -->
+            <div class="flex flex-col items-center mb-6">
+                <svg class="h-10 w-10 text-[#0f172a] mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span class="text-2xl font-black tracking-tighter uppercase text-[#0f172a]">Subnett<span class="bg-[#0f172a] text-white px-1.5 py-0.5 rounded ml-0.5 font-mono text-lg">X</span></span>
+            </div>
+            <div class="flex mb-6 border border-gray-300 rounded overflow-hidden">
+                <button id="tab-prof" onclick="toggleRole('prof')" class="flex-1 py-3 bg-[#0f172a] text-white font-bold text-xs uppercase tracking-wider transition">Faculty Access</button>
+                <button id="tab-stud" onclick="toggleRole('stud')" class="flex-1 py-3 bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-wider transition">Student Portal</button>
+            </div>
+            <form onsubmit="handleLogin(event)">
+                <div class="space-y-4">
+                    <input type="text" id="login-id" class="input-field" placeholder="ID (e.g. ski@6767)" required>
+                    <input type="password" id="login-pwd" class="input-field" placeholder="Password" required>
+                </div>
+                <button type="submit" class="w-full mt-6 btn-primary">Secure Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP WORKSPACE -->
+    <div id="main-app" class="hidden flex-col min-h-screen">
+        <!-- HEADER / NAVBAR -->
+        <header class="bg-[#0f172a] text-white p-4 flex justify-between items-center shadow-md relative">
+            <div class="flex items-center space-x-2">
+                <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <span class="text-xl font-black tracking-tighter uppercase">Subnett<span class="bg-white text-[#0f172a] px-1 py-0.5 rounded ml-0.5 font-mono text-sm">X</span></span>
+                <!-- FACULTY BANNER -->
+                <span id="faculty-banner" class="hidden ml-4 text-xs font-bold text-[#10b981] bg-gray-800 px-3 py-1 rounded"></span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span id="role-flag" class="px-4 py-1.5 bg-gray-800 text-gray-200 font-bold text-xs uppercase tracking-wider rounded border border-gray-600"></span>
+                <!-- Notification Bell -->
+                <div class="relative">
+                    <button onclick="toggleNotifPanel()" class="relative p-1 hover:bg-gray-700 rounded transition" title="Notifications">
+                        <svg class="h-5 w-5 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        <span id="notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[0.6rem] font-black w-4 h-4 flex items-center justify-center rounded-full">0</span>
+                    </button>
+                    <div id="notif-panel" class="notif-panel">
+                        <div class="p-3 border-b border-gray-200 bg-gray-50">
+                            <span class="font-bold text-xs uppercase tracking-wider text-gray-600">Notification Centre</span>
+                        </div>
+                        <div id="notif-list"></div>
+                    </div>
+                </div>
+                <button onclick="window.location.href='/profile'" class="text-xs font-bold uppercase text-gray-300 hover:text-white transition">Profile</button>
+                <button onclick="executeLogoutAction()" class="text-xs font-mono font-black uppercase tracking-wider text-[#e63946] hover:underline cursor-pointer px-2 py-1 select-none">Log Out &rarr;</button>
+            </div>
+        </header>
+
+        <main class="flex-1 p-6 max-w-7xl mx-auto w-full">
+            <!-- FACULTY DASHBOARD VIEW -->
+            <div id="portal-prof" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left Column -->
+                    <div class="col-span-1 space-y-6">
+                        <!-- Audit Session Card -->
+                        <div class="card border border-slate-700 shadow-xl rounded-xl">
+                            <h2 class="font-bold text-lg mb-2">3-Minute Attendance Audit</h2>
+                            <p class="text-xs text-gray-500 mb-6">Cryptographic 180s window with dynamic token rotation.</p>
+                            <div class="text-center text-5xl font-mono font-black mb-6 text-[#0f172a]" id="timer">03:00</div>
+                            <button id="btn-audit" onclick="toggleAudit()" class="w-full border-2 border-red-500 text-red-500 font-bold py-3 text-xs uppercase tracking-wider rounded hover:bg-red-50 transition mb-6">Initiate Audit Session</button>
+                            <div class="flex justify-center items-center">
+                                <div id="qrcode-display-mount" class="bg-white p-2 border-4 border-gray-200 rounded shadow-inner" style="width:236px;height:236px;display:flex;align-items:center;justify-content:center;">
+                                    <span class="text-gray-400 text-xs font-bold uppercase tracking-wider">QR STANDBY</span>
+                                </div>
+                            </div>
+                            <!-- LEVC Strobe Control -->
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[0.65rem] font-bold text-gray-500 uppercase tracking-wider">Proximity Engine</span>
+                                    <span id="sonic-status" class="text-[0.6rem] font-bold text-gray-400 uppercase">STANDBY</span>
+                                </div>
+                                <button onclick="triggerLEVC()" class="w-full border-2 border-amber-500 text-amber-600 font-bold py-2 text-xs uppercase tracking-wider rounded hover:bg-amber-50 transition">Fire LEVC Strobe</button>
+                                <div id="levc-flash-overlay" class="hidden mt-2 rounded text-center text-white font-black text-lg py-3 uppercase tracking-wider"></div>
+                            </div>
+                        </div>
+                        <!-- Schedule Engine -->
+                        <div class="card border border-slate-700 shadow-xl rounded-xl">
+                            <h2 class="font-bold text-lg mb-4">&#128197; Class Off Schedule Engine</h2>
+                            <div class="space-y-4">
+                                <select id="cancel-subject" class="input-field text-xs">
+                                    <option value="CSE1101">CSE1101: Computer Programming using C</option>
+                                    <option value="MTH1801">MTH1801: Calculus for Engineers</option>
+                                    <option value="COM1101">COM1101: Communication and Writing Skills</option>
+                                    <option value="MEC1101">MEC1101: Elements of Mechanical Engineering</option>
+                                    <option value="VAL1801">VAL1801: Engineering Ethics</option>
+                                    <option value="ENV1101">ENV1101: Environmental Science</option>
+                                    <option value="MAD1101">MAD1101: Design Thinking</option>
+                                </select>
+                                <input type="date" id="cancel-date" class="input-field text-xs">
+                                <button onclick="triggerCancellation()" class="w-full btn-primary">Broadcast Notice</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Right Column -->
+                    <div class="col-span-2 space-y-6 flex flex-col">
+                        <!-- Threat Matrix -->
+                        <div class="bg-white border border-slate-300 rounded p-6 shadow-sm flex flex-col justify-between h-[420px]">
+                            <h2 class="font-bold text-lg mb-4">Live Fraud Threat Matrix</h2>
+                            <div class="w-full overflow-y-auto max-h-[300px]">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead class="uppercase text-gray-500 border-b border-gray-200">
+                                        <tr><th class="pb-2 px-2 text-left">Time</th><th class="pb-2 px-2 text-left">Roll Number</th><th class="pb-2 px-2 text-left">Method</th><th class="pb-2 px-2 text-left">IP</th><th class="pb-2 px-2 text-left">Status</th></tr>
+                                    </thead>
+                                    <tbody id="matrix-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Accordion Tickets -->
+                        <div class="border border-gray-300 rounded bg-white overflow-hidden shadow-sm">
+                            <button onclick="toggleAccordion()" class="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition border-b border-gray-200 outline-none focus:outline-none">
+                                <h2 class="font-bold text-lg text-gray-800 m-0">Incoming Student Leave &amp; Medical Ticket Queue</h2>
+                                <span id="acc-arrow" class="transform transition-transform">&#9660;</span>
+                            </button>
+                            <div id="acc-body" class="p-4 bg-gray-50 hidden flex-col gap-4">
+                                <p class="text-xs text-gray-400 text-center py-4">Loading tickets...</p>
+                            </div>
+                        </div>
+                        <!-- Archive Query -->
+                        <div class="card bg-slate-50 border-slate-300 border border-slate-700 shadow-xl rounded-xl">
+                            <h2 class="font-bold text-lg mb-2">Student Archive Query</h2>
+                            <p class="text-xs text-gray-500 mb-4">Manual lookahead lookup search engine block.</p>
+                            <div class="space-y-4">
+                                <input type="text" id="query-roll" class="input-field text-xs" placeholder="Query Enrollment / Roll Number">
+                                <button onclick="queryRecords()" class="w-full btn-primary bg-slate-700">Query Records</button>
+                            </div>
+                            <div id="query-result" class="mt-4 text-xs hidden"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- STUDENT DASHBOARD VIEW -->
+            <div id="portal-stud" class="hidden">
+
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Column 1 -->
+                    <div class="space-y-8">
+                        <!-- Live Camera Scanner -->
+                        <div class="card border border-slate-700 shadow-xl rounded-xl">
+                            <h2 class="font-bold text-lg mb-2">Live Web Scanner</h2>
+                            <p class="text-xs text-gray-500 mb-4">Point your camera at the projected QR code to verify attendance.</p>
+                            <div class="bg-black rounded overflow-hidden mb-4 relative" style="height:280px;">
+                                <video id="student-camera-stream" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                                <div id="laser-line" class="laser-scanner"></div>
+                                <div id="camera-status" class="absolute bottom-2 left-2 bg-black/70 text-white text-[0.65rem] font-bold uppercase px-2 py-1 rounded tracking-wider">Requesting Camera...</div>
+                                <div id="live-mic-telemetry" class="absolute top-2 right-2 bg-black/70 text-green-400 text-[0.65rem] font-mono font-bold uppercase px-2 py-1 rounded tracking-wider hidden">Live Mic: -- Hz</div>
+                            </div>
+                            <div class="flex items-center justify-center mb-2">
+                                <button id="btn-start-cam" onclick="startCameraFeed()" class="w-full btn-primary">Activate Camera Feed</button>
+                                <span id="success-tick" class="hidden text-green-500 font-bold ml-3 text-2xl">&#10003;</span>
+                            </div>
+                            <div id="scan-result" class="text-center text-xs font-bold uppercase tracking-wider mt-2 text-gray-500 hidden">VERIFICATION PENDING...</div>
+                            <!-- LEVC Fallback UI -->
+                            <div id="levc-fallback-panel" class="hidden mt-4 pt-4 border-t border-gray-200">
+                                <div class="text-[0.65rem] font-bold text-amber-600 uppercase tracking-wider mb-2 text-center">⚡ VISUAL CHALLENGE — TAP THE COLOR YOU SAW FLASH</div>
+                                <div class="grid grid-cols-3 gap-3">
+                                    <button onclick="respondLEVC('CRIMSON')" class="py-4 rounded-lg font-black text-white text-sm uppercase tracking-wider bg-red-600 hover:bg-red-700 transition shadow-lg">Crimson</button>
+                                    <button onclick="respondLEVC('COBALT')" class="py-4 rounded-lg font-black text-white text-sm uppercase tracking-wider bg-blue-600 hover:bg-blue-700 transition shadow-lg">Cobalt</button>
+                                    <button onclick="respondLEVC('EMERALD')" class="py-4 rounded-lg font-black text-white text-sm uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 transition shadow-lg">Emerald</button>
+                                </div>
+                                <div id="levc-result" class="text-center text-xs font-bold uppercase tracking-wider mt-2 hidden"></div>
+                            </div>
+                        </div>
+                        <!-- Classes Checkin -->
+                        <div class="card border border-slate-700 shadow-xl rounded-xl">
+                            <h2 class="font-bold text-lg mb-4">Classes Checkin</h2>
+                            <select id="subject-selector" class="input-field text-xs mb-4" onchange="runCheckin()">
+                                <option value="CSE1101">CSE1101: Computer Programming using C</option>
+                                <option value="MTH1801">MTH1801: Calculus for Engineers</option>
+                                <option value="COM1101">COM1101: Communication and Writing Skills</option>
+                                <option value="MEC1101">MEC1101: Elements of Mechanical Engineering</option>
+                                <option value="VAL1801">VAL1801: Engineering Ethics</option>
+                                <option value="ENV1101">ENV1101: Environmental Science</option>
+                                <option value="MAD1101">MAD1101: Design Thinking</option>
+                            </select>
+                            <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Semester Classes</span>
+                                <span id="disp-sem" class="font-mono font-bold text-sm">--</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
+                                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Classes Conducted</span>
+                                <span id="disp-cond" class="font-mono font-bold text-sm">--</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
+                                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Classes Attended</span>
+                                <input type="number" id="manual-attended-input" min="0" value="11" onchange="updateAttendedValueLive(this.value)" class="w-16 text-right font-bold border border-slate-300 rounded px-1 text-sm bg-white focus:outline-none">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-gray-50 border border-gray-200 p-4 rounded text-center flex flex-col justify-center">
+                                    <div class="text-[0.65rem] font-bold text-gray-500 uppercase tracking-wider mb-1">Current %</div>
+                                    <div id="disp-perc" class="text-3xl font-black text-[#0f172a]">--%</div>
+                                </div>
+                                <div class="bg-gray-50 border border-gray-200 p-4 rounded text-center flex flex-col justify-center">
+                                    <div class="text-[0.65rem] font-bold text-gray-500 uppercase tracking-wider mb-1">Target: 80%</div>
+                                    <div id="disp-meter" class="text-xs font-bold mt-1">--</div>
+                                </div>
+                            </div>
+                            <div id="bunks-capacitator-container"></div>
+                        </div>
+                        
+                        <!-- Live Faculty Announcements Card -->
+                        <div class="card border border-slate-700 shadow-xl rounded-xl">
+                            <h2 class="font-bold text-lg mb-2">Live Faculty Announcements</h2>
+                            <p class="text-xs text-gray-500 mb-4">Real-time broadcast notices from your professors.</p>
+                            <div id="student-notices-card-container" class="space-y-3 max-h-64 overflow-y-auto pr-2">
+                                <p class="text-xs text-gray-400 text-center py-4">No active broadcasts.</p>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    <!-- Column 2 -->
+                    <div class="space-y-8">
+                        <!-- Crypto Ledger -->
+                        <div class="card border border-slate-700 shadow-xl rounded-xl">
+                            <h2 class="font-bold text-lg mb-2">Cryptographic Digital Ledger</h2>
+                            <p class="text-xs text-gray-500 mb-4">Tamper-proof verifiable attendance receipts.</p>
+                            <table class="w-full text-left text-xs">
+                                <thead class="uppercase text-gray-500 border-b border-gray-200">
+                                    <tr><th class="pb-2">Date</th><th class="pb-2">Course</th><th class="pb-2">Action</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td class="py-3 font-mono">2026-08-18</td><td class="py-3 font-mono">CS301</td><td><button class="text-xs font-bold text-blue-600 uppercase border border-blue-600 px-2 py-1 rounded hover:bg-blue-600 hover:text-white transition">Download</button></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Leave Application -->
+                        <div class="card border border-slate-700 shadow-xl rounded-xl">
+                            <h2 class="font-bold text-lg mb-2">Instant Leave Application Form</h2>
+                            <p class="text-xs text-gray-500 mb-4">Submit official leave documents directly.</p>
+                            <div class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Roll Number</label>
+                                        <input type="text" id="leave-roll" class="input-field text-xs" placeholder="e.g. 260307">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Personal Email</label>
+                                        <input type="email" id="leave-email" class="input-field text-xs" placeholder="anurag@gmail.com">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Target Professor</label>
+                                    <select id="leave-target-prof" class="input-field text-xs">
+                                        <option value="ski@6767">Prof. Skibidi Saxena (Faculty Chair - CSE)</option>
+                                        <option value="riz@1234">Dr. Rizzler Rastogi (Faculty Co-Chair - MTH)</option>
+                                        <option value="gya@9876">Prof. Kai Fanat (Humanities Head - COM)</option>
+                                        <option value="sig@4567">Dr. Duke Jhatka (Mechanical Head - MEC)</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Leave Start Date</label>
+                                        <input type="date" id="leave-start-date" class="input-field text-xs">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Leave End Date</label>
+                                        <input type="date" id="leave-end-date" class="input-field text-xs">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Reason Description</label>
+                                    <textarea id="leave-reason" class="input-field text-xs h-20 resize-none" placeholder="Reason for absence..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Upload Verification Certificate</label>
+                                    <input type="file" id="leave-file" class="input-field text-xs" accept=".png,.pdf">
+                                </div>
+                                <button onclick="submitLeave()" class="w-full btn-primary mt-2">Transmit Request</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        /* =========================================
+           STATE CONTROLLERS
+           ========================================= */
+        let role = 'prof';
+        let auditTimer = null;
+        let auditActive = false;
+        let timeLeft = 180;
+        let logPoll = null;
+        let ticketPoll = null;
+        let currentRoll = '';
+        
+        let qrInstance = null;
+        let cameraStream = null;
+        let cameraScanLoop = null;
+        let studentNoticesLoop = null;
+        let lastNoticeId = 0;
+        
+        // Dual-Vector Proximity Engine State
+        let audioCtx = null;
+        let oscillatorNode = null;
+        let currentUltrasonicFreq = 0;
+
+        /* =========================================
+           NOTIFICATION SYSTEM
+           ========================================= */
+        const PROF_NOTIFICATIONS = [
+            { icon: "&#128229;", text: "LEAVE TICKET SUBMITTED: Student 260331 requested Medical leave." },
+            { icon: "&#9888;&#65039;", text: "TELEMETRY WARNING: Roll 260302 flagged for Subnet IP mismatch." },
+            { icon: "&#127915;", text: "NEW EVENT CLAIM: Student 260281 uploaded a Hackathon Duty slip." },
+            { icon: "&#128202;", text: "END OF BLOCK LOG: 18 students successfully written to the attendance ledger." }
+        ];
+
+        const STUD_NOTIFICATIONS = [
+            { icon: "&#8987;", text: "UPCOMING SESSION: CSE1101 - Computer Programming starts in 15 minutes." },
+            { icon: "&#10003;", text: "REGISTRY UPDATE: Your Leave Application has been formally APPROVED by Prof. Saxena." },
+            { icon: "&#128226;", text: "CLASS CANCELLATION: MTH1801 lecture on 2026-08-21 stands cancelled." },
+            { icon: "&#128274;", text: "SECURITY RECEIPT: Attendance Scan Hash successfully verified via local campus gateway." },
+            { icon: "&#128161;", text: "OPTIMIZER NOTICE: Your Calculus standing dropped to 74.5%. Reclaim margin on next session." }
+        ];
+
+        function loadNotifications(items) {
+            const list = document.getElementById('notif-list');
+            const badge = document.getElementById('notif-badge');
+            list.innerHTML = '';
+            items.forEach((n, i) => {
+                const div = document.createElement('div');
+                div.className = 'notif-item' + (i < 2 ? ' unread' : '');
+                div.innerHTML = `<span>${n.icon}</span> ${n.text}`;
+                list.appendChild(div);
+            });
+            badge.innerText = items.length;
+        }
+
+        function toggleNotifPanel() {
+            const panel = document.getElementById('notif-panel');
+            panel.classList.toggle('open');
+        }
+
+        // Close panel on outside click
+        document.addEventListener('click', (e) => {
+            const panel = document.getElementById('notif-panel');
+            if (panel && !e.target.closest('.relative') && panel.classList.contains('open')) {
+                panel.classList.remove('open');
+            }
+        });
+
+        /* =========================================
+           TOAST SYSTEM
+           ========================================= */
+        function showToast(msg, duration) {
+            const t = document.getElementById('global-toast');
+            t.style.display = 'block';
+            t.innerText = msg;
+            // Force reflow to ensure the CSS transition triggers
+            void t.offsetWidth;
+            t.classList.add('show');
+            
+            setTimeout(() => {
+                t.classList.remove('show');
+                // Remove from DOM flow after transition completes to completely kill ghost clicks
+                setTimeout(() => {
+                    t.style.display = 'none';
+                }, 300);
+            }, duration || 3000);
+        }
+
+        /* =========================================
+           ACADEMIC DATABASE & TEMPORAL ENGINE
+           ========================================= */
+        const ACADEMIC_SYLLABUS_DB = {
+            "CSE1101": { total: 40, attended: 6 },
+            "MTH1801": { total: 40, attended: 5 },
+            "COM1101": { total: 30, attended: 7 },
+            "MEC1101": { total: 40, attended: 8 },
+            "VAL1801": { total: 20, attended: 4 },
+            "ENV1101": { total: 20, attended: 3 },
+            "MAD1101": { total: 30, attended: 4 }
+        };
+
+        function getConductedClassesLiveCount(code) {
+            const start = new Date("2026-08-10");
+            const now = new Date();
+            let counts = {0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+            for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 1)) {
+                counts[d.getDay()]++;
+            }
+            switch(code) {
+                case "CSE1101": return counts[3]*1 + counts[4]*2 + counts[5]*1;
+                case "MTH1801": return counts[1]*1 + counts[2]*1 + counts[3]*1;
+                case "COM1101": return counts[2]*1 + counts[3]*1 + counts[5]*2;
+                case "MEC1101": return counts[1]*2 + counts[2]*1 + counts[3]*2 + counts[4]*1 + counts[5]*2;
+                case "VAL1801": return counts[1]*2;
+                case "ENV1101": return counts[1]*2 + counts[4]*1;
+                case "MAD1101": return counts[4]*2;
+            }
+            return 0;
+        }
+
+        /* =========================================
+           LOGIN / ROLE TOGGLE
+           ========================================= */
+        function toggleRole(r) {
+            role = r;
+            const p = document.getElementById('tab-prof');
+            const s = document.getElementById('tab-stud');
+            const id = document.getElementById('login-id');
+            if (r === 'prof') {
+                p.className = 'flex-1 py-3 bg-[#0f172a] text-white font-bold text-xs uppercase tracking-wider transition';
+                s.className = 'flex-1 py-3 bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-wider transition';
+                id.placeholder = 'ID (e.g. ski@6767)';
+            } else {
+                s.className = 'flex-1 py-3 bg-[#0f172a] text-white font-bold text-xs uppercase tracking-wider transition';
+                p.className = 'flex-1 py-3 bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-wider transition';
+                id.placeholder = 'ID (e.g. 260307)';
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const id = document.getElementById('login-id').value.trim();
+            const pwd = document.getElementById('login-pwd').value.trim();
+
+            if (role === 'prof') {
+                try {
+                    const res = await fetch('/api/verify_attendance', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ enrollment_id: id, token: 'LOGIN_ONLY', password: pwd })
+                    });
+                    const data = await res.json();
+                    if (data.success && data.role === 'faculty') {
+                        localStorage.setItem("subnettx_logged_user_id", id);
+                        localStorage.setItem("subnettx_session_role", data.role);
+                        var facName = Array.isArray(data.faculty_name) ? data.faculty_name[0] : String(data.faculty_name || '');
+                        var subjCode = Array.isArray(data.subject_code) ? data.subject_code[0] : String(data.subject_code || '');
+                        var subjName = Array.isArray(data.subject_name) ? data.subject_name[0] : String(data.subject_name || '');
+                        
+                        localStorage.setItem("subnettx_fac_name", facName);
+                        localStorage.setItem("subnettx_fac_subj_code", subjCode);
+                        localStorage.setItem("subnettx_fac_subj_name", subjName);
+
+                        document.getElementById('login-overlay').style.display = 'none';
+                        document.getElementById('main-app').style.display = 'flex';
+                        document.getElementById('portal-prof').style.display = 'block';
+                        document.getElementById('portal-stud').style.display = 'none';
+                        document.getElementById('role-flag').innerText = 'FACULTY AUDIT INTERFACE';
+                        
+                        const fb = document.getElementById('faculty-banner');
+                        fb.innerText = `Faculty: ${facName} | Course Track: ${subjCode} - ${subjName}`;
+                        fb.classList.remove('hidden');
+
+                        loadNotifications(PROF_NOTIFICATIONS);
+                        startLiveLogPollingLoop();
+                        startLiveTicketPollingLoop();
+                    } else {
+                        alert(data.error || 'Invalid Credentials');
+                    }
+                } catch(err) { alert('Network Error'); }
+            } else {
+                currentRoll = id;
+                try {
+                    const res = await fetch('/api/verify_attendance', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ enrollment_id: id, token: 'LOGIN_ONLY', password: pwd })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        localStorage.setItem("subnettx_logged_user_id", id);
+                        localStorage.setItem("subnettx_session_role", "student");
+                        
+                        document.getElementById('login-overlay').style.display = 'none';
+                        document.getElementById('main-app').style.display = 'flex';
+                        document.getElementById('portal-stud').style.display = 'block';
+                        document.getElementById('portal-prof').style.display = 'none';
+                        document.getElementById('role-flag').innerText = 'STUDENT UTILITY PORTAL';
+                        loadNotifications(STUD_NOTIFICATIONS);
+                        runCheckin();
+                        startStudentNoticesLoop();
+                    } else alert(data.error || 'Invalid Credentials');
+                } catch(err) { alert('Network Error'); }
+            }
+        }
+
+        function executeLogoutAction() { logout(); }
+        function logout() {
+            // 1. Completely clear all SubnettX session keys from localStorage
+            localStorage.clear();
+            
+            // 2. Immediately force a hard browser redirect to flush the DOM and trigger the login view mount
+            window.location.replace('/');
+        }
+
+        /* =========================================
+           FACULTY: QR AUDIT ENGINE
+           ========================================= */
+        function toggleAudit() {
+            const btn = document.getElementById('btn-audit');
+            const mount = document.getElementById('qrcode-display-mount');
+
+            if (!auditActive) {
+                auditActive = true;
+                btn.innerText = 'ABORT AUDIT SESSION';
+                btn.classList.add('bg-red-50');
+                timeLeft = 180;
+                mount.innerHTML = '';
+                qrInstance = new QRCode(mount, {
+                    text: 'INIT', width: 220, height: 220,
+                    colorDark: '#000000', colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                fetchAndRenderToken();
+                auditTimer = setInterval(async () => {
+                    timeLeft--;
+                    let m = Math.floor(timeLeft / 60);
+                    let s = timeLeft % 60;
+                    document.getElementById('timer').innerText = `0${m}:${s < 10 ? '0' + s : s}`;
+                    
+                    // Out-of-phase automated LEVC strobe
+                    if (timeLeft % 3 === 0) await fetchAndRenderToken();
+                    if (timeLeft % 3 === 2) triggerLEVC(); // Fires exactly 1 second before/after QR rotation
+
+                    if (timeLeft <= 0) {
+                        clearInterval(auditTimer);
+                        auditActive = false;
+                        btn.innerText = 'INITIATE AUDIT SESSION';
+                        btn.classList.remove('bg-red-50');
+                        stopUltrasonicBroadcast();
+                        mount.innerHTML = '<span class="text-gray-400 text-xs font-bold uppercase tracking-wider">SESSION ENDED</span>';
+                        qrInstance = null;
+                        document.getElementById('timer').innerText = '03:00';
+                    }
+                }, 1000);
+            } else {
+                auditActive = false;
+                clearInterval(auditTimer);
+                stopUltrasonicBroadcast();
+                btn.innerText = 'INITIATE AUDIT SESSION';
+                btn.classList.remove('bg-red-50');
+                mount.innerHTML = '<span class="text-gray-400 text-xs font-bold uppercase tracking-wider">QR STANDBY</span>';
+                qrInstance = null;
+                document.getElementById('timer').innerText = '03:00';
+            }
+        }
+
+        async function fetchAndRenderToken() {
+            try {
+                const r = await fetch('/api/get_token');
+                const d = await r.json();
+                const token = d.token || d.current_token || '000000';
+                if (qrInstance) qrInstance.makeCode(token);
+                
+                // VECTOR A: Update ultrasonic oscillator frequency for this time block
+                if (d.ultrasonic_freq && auditActive) {
+                    updateUltrasonicBroadcast(d.ultrasonic_freq);
+                }
+            } catch(e) {
+                if (qrInstance) qrInstance.makeCode(Math.floor(100000 + Math.random() * 900000).toString());
+            }
+        }
+
+        /* =========================================
+           VECTOR A: ULTRASONIC ACOUSTIC BROADCAST
+           Security: VoIP codecs (Opus/Discord) low-pass
+           filter at ~15kHz, destroying 18-20kHz signals.
+           Only physically present devices can detect it.
+           ========================================= */
+        function updateUltrasonicBroadcast(freq) {
+            const statusEl = document.getElementById('sonic-status');
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (currentUltrasonicFreq === freq && oscillatorNode) return;
+            
+            if (oscillatorNode) { try { oscillatorNode.stop(); } catch(e){} }
+            
+            oscillatorNode = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.15;  // Low volume — inaudible ultrasonic
+            oscillatorNode.type = 'sine';
+            oscillatorNode.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            oscillatorNode.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillatorNode.start();
+            currentUltrasonicFreq = freq;
+            if (statusEl) {
+                statusEl.innerText = freq + ' Hz ACTIVE';
+                statusEl.style.color = '#059669';
+            }
+        }
+        
+        function stopUltrasonicBroadcast() {
+            if (oscillatorNode) { try { oscillatorNode.stop(); } catch(e){} oscillatorNode = null; }
+            currentUltrasonicFreq = 0;
+            const s = document.getElementById('sonic-status');
+            if (s) { s.innerText = 'STANDBY'; s.style.color = '#9ca3af'; }
+        }
+
+        /* =========================================
+           VECTOR B: LEVC STROBE FLASH (Professor)
+           Security: 1200ms TTL window. Discord/Zoom
+           video encoding latency is 1.5-3s, so remote
+           cheaters can never respond in time.
+           ========================================= */
+        async function triggerLEVC() {
+            try {
+                const res = await fetch('/api/levc/trigger', { method: 'POST' });
+                const d = await res.json();
+                if (d.success) {
+                    const overlay = document.getElementById('levc-flash-overlay');
+                    const colorMap = { CRIMSON: '#dc2626', COBALT: '#2563eb', EMERALD: '#059669' };
+                    overlay.style.background = colorMap[d.color] || '#000';
+                    overlay.innerText = d.color;
+                    overlay.classList.remove('hidden');
+                    
+                    // Also flash the QR mount background for 400ms
+                    const mount = document.getElementById('qrcode-display-mount');
+                    if (mount) mount.style.borderColor = colorMap[d.color] || '#e5e7eb';
+                    
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        if (mount) mount.style.borderColor = '#e5e7eb';
+                    }, 800);
+                }
+            } catch(e) { console.error('LEVC trigger failed:', e); }
+        }
+
+        /* =========================================
+           FACULTY: CANCELLATION / QUERY / ACCORDION
+           ========================================= */
+        async function triggerCancellation() {
+            const subj = document.getElementById('cancel-subject').value;
+            const dt = document.getElementById('cancel-date').value;
+            if (!dt) return alert('Select date');
+            try {
+                const r = await fetch('/api/professor/cancel_class', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ subject_code: subj, date: dt }) });
+                const res = await r.json();
+                if (res.success) showToast('Broadcast Notice Sent Successfully.');
+            } catch(e) {}
+        }
+
+        async function queryRecords() {
+            const q = document.getElementById('query-roll').value.trim();
+            if (!q) return alert("Enter Enrollment Number");
+            const rd = document.getElementById('query-result');
+            try {
+                const r = await fetch(`/api/query_student?enrollment_id=${encodeURIComponent(q)}`);
+                const d = await r.json();
+                if (d.success) {
+                    const s = d.student;
+                    rd.innerHTML = `<div class="bg-white border border-gray-200 rounded p-3 mt-2"><p><strong>Name:</strong> ${s.student_name}</p><p><strong>Email:</strong> ${s.email||'N/A'}</p><p><strong>Conducted:</strong> ${s.conducted_lectures} | <strong>Attended:</strong> ${s.attended_lectures}</p><p><strong>Percentage:</strong> ${s.percentage}%</p></div>`;
+                } else rd.innerHTML = `<p class="text-red-600 font-bold mt-2">${d.error}</p>`;
+                rd.classList.remove('hidden');
+            } catch(e) { rd.innerHTML = '<p class="text-red-600 font-bold mt-2">Network Error</p>'; rd.classList.remove('hidden'); }
+        }
+
+        function toggleAccordion() {
+            const body = document.getElementById('acc-body');
+            const arrow = document.getElementById('acc-arrow');
+            if (body.classList.contains('hidden')) { body.classList.remove('hidden'); body.classList.add('flex'); arrow.style.transform = 'rotate(180deg)'; }
+            else { body.classList.add('hidden'); body.classList.remove('flex'); arrow.style.transform = 'rotate(0deg)'; }
+        }
+
+        async function resolveTicket(enrollId, ticketId, action, btn) {
+            try {
+                const res = await fetch('/api/professor/resolve_ticket', { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ enrollment_id: enrollId, ticket_id: ticketId, action: action }) 
+                });
+                const d = await res.json();
+                if (d.success) {
+                    const card = btn.closest('.ticket-card');
+                    if (card) { 
+                        card.style.transition = 'all 0.4s ease'; 
+                        card.style.opacity = '0'; 
+                        card.style.transform = 'translateY(-10px)'; 
+                        setTimeout(() => card.remove(), 400); 
+                    }
+                    const msg = action === 'approve' ? 'Ticket Approved' : 'Ticket Declined';
+                    showToast(`${msg} & Notification Sent`);
+                }
+            } catch(e) {}
+        }
+
+        /* =========================================
+           FACULTY: LIVE POLLING LOOPS
+           ========================================= */
+        function startLiveLogPollingLoop() {
+            if (logPoll) clearInterval(logPoll);
+            logPoll = setInterval(async () => {
+                try {
+                    const r = await fetch('/api/get_live_logs');
+                    const d = await r.json();
+                    const body = document.getElementById('matrix-body');
+                    body.innerHTML = '';
+                    (d.logs || []).forEach(l => {
+                        let tr = document.createElement('tr');
+                        
+                        // We use the full detail string if flagged, else standard text
+                        if (l.type === 'FLAGGED') {
+                            tr.className = 'bg-rose-50 border-l-4 border-rose-600 text-rose-900 font-bold font-mono animate-pulse p-3';
+                            tr.innerHTML = `<td class="py-2 px-2 font-mono text-gray-500">${l.timestamp}</td><td class="py-2 px-2"><span class="text-rose-700 text-lg">${l.enrollment_id}</span></td><td class="py-2 px-2">Anomaly Detected</td><td class="py-2 px-2">Outlier IP</td><td class="py-2 px-2 font-black">${l.detail}</td>`;
+                        } else {
+                            tr.className = 'bg-green-50 border-l-4 border-green-500 text-green-900 font-medium font-mono p-3';
+                            tr.innerHTML = `<td class="py-2 px-2 font-mono text-green-600">${l.timestamp}</td><td class="py-2 px-2"><span class="text-green-700 text-lg font-bold">${l.enrollment_id}</span></td><td class="py-2 px-2">Optical Scan</td><td class="py-2 px-2">Classroom Node</td><td class="py-2 px-2" style="color: #10b981;">[FAIR SCAN] Roll No: ${l.enrollment_id} at ${l.timestamp}</td>`;
+                        }
+                        body.appendChild(tr);
+                    });
+                } catch(e) {}
+            }, 2000);
+        }
+
+        function startLiveTicketPollingLoop() {
+            if (ticketPoll) clearInterval(ticketPoll);
+            async function fetch_t() {
+                try {
+                    const r = await fetch('/api/get_live_tickets');
+                    const d = await r.json();
+                    const container = document.getElementById('acc-body');
+                    const wasHidden = container.classList.contains('hidden');
+                    container.innerHTML = '';
+                    if (!d.tickets || d.tickets.length === 0) {
+                        container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No pending tickets.</p>';
+                    } else {
+                        d.tickets.forEach(t => {
+                            const card = document.createElement('div');
+                            card.className = 'ticket-card bg-white p-4 border border-gray-200 rounded shadow-sm';
+                            let attachBtn = t.attachment_path 
+                                ? `<a href="/api/attachments/${t.attachment_path}" target="_blank" class="bg-blue-600 text-white px-3 py-1 text-xs font-bold rounded uppercase hover:bg-blue-700 transition shadow-sm flex items-center justify-center">View File</a>` 
+                                : '';
+                            card.innerHTML = `
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <span class="text-yellow-600 font-bold text-xs uppercase tracking-wider">[PENDING]</span>
+                                        <span class="font-bold text-sm ml-2">Roll: ${t.enrollment_id} | ${t.student_name}</span>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        ${attachBtn}
+                                        <button onclick="resolveTicket('${t.enrollment_id}', ${t.id}, 'approve', this)" class="bg-green-600 text-white px-3 py-1 text-xs font-bold rounded uppercase hover:bg-green-700 transition shadow-sm">Approve</button>
+                                        <button onclick="resolveTicket('${t.enrollment_id}', ${t.id}, 'decline', this)" class="bg-red-600 text-white px-3 py-1 text-xs font-bold rounded uppercase hover:bg-red-700 transition shadow-sm">Decline</button>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-600 mt-1"><strong>Dates:</strong> ${t.start_date || 'N/A'} to ${t.end_date || 'N/A'}</p>
+                                <p class="text-xs text-gray-600 mt-1"><strong>Type:</strong> ${t.ticket_type} | <strong>Reason:</strong> ${t.reason}</p>
+                            `;
+                            container.appendChild(card);
+                        });
+                    }
+                    if (wasHidden) { container.classList.add('hidden'); container.classList.remove('flex'); }
+                    else { container.classList.remove('hidden'); container.classList.add('flex'); }
+                } catch(e) {}
+            }
+            fetch_t();
+            ticketPoll = setInterval(fetch_t, 3000);
+        }
+
+        /* =========================================
+           STUDENT: CAMERA SCAN PIPELINE
+           ========================================= */
+
+        /* =========================================
+           STUDENT: LIVE NOTICES POLLING
+           ========================================= */
+        async function fetchStudentNotices() {
+            try {
+                const res = await fetch('/api/get_latest_notices');
+                const data = await res.json();
+                if (data.success && data.notices.length > 0) {
+                    const container = document.getElementById('student-notices-card-container');
+                    if(container) container.innerHTML = '';
+                    
+                    data.notices.forEach(n => {
+                        if (n.id > lastNoticeId) {
+                            showToast(`\uD83D\uDCE2 NEW BROADCAST: ${n.subject_code}`);
+                            lastNoticeId = n.id;
+                        }
+                        
+                        const msgShort = n.message.substring(0, 150) + '...';
+                        if(container) {
+                            container.innerHTML += `
+                                <div class="bg-slate-50 border border-slate-200 p-3 rounded shadow-sm flex items-start space-x-3">
+                                    <div class="flex-shrink-0 mt-0.5">
+                                        <svg class="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                                        </svg>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-[0.65rem] font-bold text-slate-800 uppercase tracking-wider mb-1">${n.subject_code} &bull; <span class="text-slate-500 font-normal">${n.timestamp}</span></p>
+                                        <p class="text-xs text-slate-600">${msgShort}</p>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+            } catch(e) {}
+        }
+        
+        function startStudentNoticesLoop() {
+            if (studentNoticesLoop) clearInterval(studentNoticesLoop);
+            fetchStudentNotices(); // Initial fetch
+            studentNoticesLoop = setInterval(fetchStudentNotices, 10000); // 10s poll
+        }
+        
+        function stopStudentNoticesLoop() {
+            if (studentNoticesLoop) clearInterval(studentNoticesLoop);
+            studentNoticesLoop = null;
+        }
+
+        let lastBeepToken = "";
+        let qrScannedData = null; // Enforce strict sequential pipeline
+        
+        function beepSuccess() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                setTimeout(() => oscillator.stop(), 100);
+            } catch(e) {}
+        }
+
+        async function startCameraFeed() {
+            const video = document.getElementById('student-camera-stream');
+            const scanResultDiv = document.getElementById('scan-result');
+            scanResultDiv.className = 'text-center text-xs font-bold uppercase tracking-wider mt-2 text-gray-500';
+            scanResultDiv.innerText = 'VERIFICATION PENDING...';
+            scanResultDiv.classList.remove('hidden');
+            document.getElementById('live-mic-telemetry').classList.remove('hidden');
+            const status = document.getElementById('camera-status');
+            const btn = document.getElementById('btn-start-cam');
+
+            if (cameraStream) { stopCameraFeed(); return; }
+
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = cameraStream;
+                status.innerText = 'CAMERA ACTIVE';
+                status.style.background = 'rgba(5,150,105,0.8)';
+                btn.innerText = 'DEACTIVATE CAMERA';
+                document.getElementById('laser-line').style.display = 'block';
+                document.getElementById('success-tick').classList.add('hidden');
+
+                // VECTOR A: Attempt to open microphone for ultrasonic detection
+                let micAnalyser = null;
+                let micStream = null;
+                let proximityMode = 'none';
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const micCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = micCtx.createMediaStreamSource(micStream);
+                    micAnalyser = micCtx.createAnalyser();
+                    micAnalyser.fftSize = 8192;  // High resolution FFT for ultrasonic precision
+                    source.connect(micAnalyser);
+                    proximityMode = 'ultrasonic';
+                    status.innerText = 'CAMERA + MIC ACTIVE (ULTRASONIC)';
+                } catch(micErr) {
+                    // Mic denied or unavailable — graceful degradation to LEVC mode
+                    console.warn('Mic unavailable, falling back to LEVC mode:', micErr);
+                    proximityMode = 'levc_fallback';
+                    status.innerText = 'CAMERA ACTIVE (LEVC MODE)';
+                    // DO NOT UNHIDE HERE! Enforce QR first.
+                }
+
+                // Scan loop: every 3s, grab token + detect ultrasonic freq + verify
+                // Hidden Canvas for jsQR Optical Scanning
+                let hiddenCanvas = document.getElementById('qr-canvas');
+                if (!hiddenCanvas) {
+                    hiddenCanvas = document.createElement('canvas');
+                    hiddenCanvas.id = 'qr-canvas';
+                    hiddenCanvas.style.display = 'none';
+                    document.body.appendChild(hiddenCanvas);
+                }
+                const canvasCtx = hiddenCanvas.getContext('2d', {willReadFrequently: true});
+                let lastScanTime = 0;
+
+                const scanTick = async () => {
+                    if (!cameraStream) return;
+                    
+                    let detectedFreq = 0;
+                    let activeProximityMode = proximityMode;
+
+                    // Real-time Mic Telemetry Analysis (done every frame)
+                    if (proximityMode === 'ultrasonic' && micAnalyser) {
+                        const bufferLength = micAnalyser.frequencyBinCount;
+                        const dataArray = new Uint8Array(bufferLength);
+                        micAnalyser.getByteFrequencyData(dataArray);
+                        const binSize = micAnalyser.context.sampleRate / micAnalyser.fftSize;
+                        const minBin = Math.floor(18000 / binSize);
+                        const maxBin = Math.ceil(20000 / binSize);
+                        let peakVal = 0, peakBin = minBin;
+                        for (let i = minBin; i <= maxBin && i < bufferLength; i++) {
+                            if (dataArray[i] > peakVal) { peakVal = dataArray[i]; peakBin = i; }
+                        }
+                        detectedFreq = Math.round(peakBin * binSize);
+                        
+                        document.getElementById('live-mic-telemetry').innerText = `Live Mic: ${detectedFreq} Hz`;
+
+                        if (peakVal < 20) {
+                            activeProximityMode = 'levc_fallback';
+                            // DO NOT UNHIDE HERE! Enforce QR first.
+                        }
+                    }
+
+                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        hiddenCanvas.height = video.videoHeight;
+                        hiddenCanvas.width = video.videoWidth;
+                        canvasCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+                        const imageData = canvasCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+                        
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                            inversionAttempts: "dontInvert",
+                        });
+                        
+                        if (code && code.data) {
+                            // QR Beep logic
+                            if (code.data !== lastBeepToken) {
+                                lastBeepToken = code.data;
+                                beepSuccess();
+                            }
+                            
+                            qrScannedData = code.data;
+
+                            const now = Date.now();
+                            if (now - lastScanTime > 3000) {
+                                lastScanTime = now;
+                                
+                                if (activeProximityMode === 'levc_fallback') {
+                                    document.getElementById('levc-fallback-panel').classList.remove('hidden');
+                                    const resultDiv = document.getElementById('scan-result');
+                                    resultDiv.className = 'text-center text-xs font-bold uppercase tracking-wider mt-2 text-amber-500';
+                                    resultDiv.innerText = 'AWAITING VISUAL CHALLENGE...';
+                                    document.getElementById('success-tick').classList.remove('hidden');
+                                } else {
+                                    const liveToken = code.data;
+                                    const verifyRes = await fetch('/api/verify_attendance', {
+                                        method: 'POST', headers: {'Content-Type':'application/json'},
+                                        body: JSON.stringify({ 
+                                            enrollment_id: currentRoll, 
+                                            token: liveToken, 
+                                            subject_code: currentSubject,
+                                            client_timestamp: Date.now() / 1000,
+                                            proximity_mode: activeProximityMode,
+                                            ultrasonic_freq: detectedFreq
+                                        })
+                                    });
+                                    const verifyD = await verifyRes.json();
+                                    
+                                    const resultDiv = document.getElementById('scan-result');
+                                    
+                                    if (verifyD.success) {
+                                        resultDiv.className = 'text-center text-xs font-bold uppercase tracking-wider mt-2 text-green-500';
+                                        resultDiv.innerText = `✅ ATTENDANCE SECURED`;
+                                        document.getElementById('success-tick').classList.remove('hidden');
+                                        document.getElementById('levc-fallback-panel').classList.add('hidden');
+                                        setTimeout(() => stopCameraFeed(), 1000);
+                                    } else {
+                                        resultDiv.className = 'text-center text-xs font-bold uppercase tracking-wider mt-2 text-amber-500';
+                                        resultDiv.innerText = `[THREAT FLAG] ${verifyD.error}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    cameraScanLoop = requestAnimationFrame(scanTick);
+                };
+                cameraScanLoop = requestAnimationFrame(scanTick);
+
+            } catch(e) {
+                status.innerText = 'CAMERA DENIED / UNAVAILABLE';
+                status.style.background = 'rgba(220,38,38,0.8)';
+            }
+        }
+
+        /* =========================================
+           STUDENT: LEVC RESPONSE HANDLER
+           ========================================= */
+        async function respondLEVC(color) {
+            const mainResultDiv = document.getElementById('scan-result');
+            try {
+                const res = await fetch('/api/levc/respond', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ enrollment_id: currentRoll, color: color })
+                });
+                const d = await res.json();
+                
+                if (d.success) {
+                    document.getElementById('levc-fallback-panel').classList.add('hidden');
+                    
+                    try {
+                        const token = qrScannedData;
+                        if (!token) {
+                            alert("CRITICAL ERROR: No QR code data found in memory!");
+                            return;
+                        }
+                        
+                        const verifyRes = await fetch('/api/verify_attendance', {
+                            method: 'POST', headers: {'Content-Type':'application/json'},
+                            body: JSON.stringify({ 
+                                enrollment_id: currentRoll, 
+                                token: token, 
+                                subject_code: currentSubject,
+                                client_timestamp: Date.now() / 1000,
+                                proximity_mode: 'levc_passed',
+                                ultrasonic_freq: 0
+                            })
+                        });
+                        const verifyD = await verifyRes.json();
+                        
+                        mainResultDiv.classList.remove('hidden', 'text-green-500', 'text-amber-500');
+                        if (verifyD.success) {
+                            mainResultDiv.className = 'text-center text-xs font-bold uppercase tracking-wider mt-2 text-green-500';
+                            mainResultDiv.innerText = `✅ ATTENDANCE SECURED`;
+                            document.getElementById('success-tick').classList.remove('hidden');
+                            setTimeout(() => stopCameraFeed(), 1000);
+                        } else {
+                            mainResultDiv.className = 'text-center text-xs font-bold uppercase tracking-wider mt-2 text-amber-500';
+                            mainResultDiv.innerText = `[THREAT FLAG] ${verifyD.error}`;
+                        }
+                    } catch(e) { console.error(e); }
+                } else {
+                    mainResultDiv.className = 'text-center text-xs font-bold uppercase tracking-wider mt-2 text-red-500';
+                    mainResultDiv.innerText = '❌ LEVC Failed. Wait for the next color.';
+                    mainResultDiv.classList.remove('hidden');
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        function stopCameraFeed() {
+            document.getElementById('levc-fallback-panel').classList.add('hidden');
+            const video = document.getElementById('student-camera-stream');
+            const status = document.getElementById('camera-status');
+            const btn = document.getElementById('btn-start-cam');
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+            if (cameraScanLoop) { cancelAnimationFrame(cameraScanLoop); cameraScanLoop = null; }
+            video.srcObject = null;
+            status.innerText = 'Camera Off';
+            status.style.background = 'rgba(0,0,0,0.7)';
+            btn.innerText = 'ACTIVATE CAMERA FEED';
+            document.getElementById('laser-line').style.display = 'none';
+            document.getElementById('live-mic-telemetry').classList.add('hidden');
+            document.getElementById('scan-result').classList.add('hidden');
+        }
+
+        /* =========================================
+           STUDENT: CHECKIN ENGINE
+           ========================================= */
+        function updateAttendedValueLive(val) {
+            const code = document.getElementById('subject-selector').value;
+            if (ACADEMIC_SYLLABUS_DB[code]) {
+                ACADEMIC_SYLLABUS_DB[code].attended = parseInt(val, 10);
+                runBunkCalculationEngine();
+            }
+        }
+        function runBunkCalculationEngine() { runCheckin(); }
+
+        function runCheckin() {
+            const code = document.getElementById('subject-selector').value;
+            const data = ACADEMIC_SYLLABUS_DB[code] || { total: 40, attended: 0 };
+            const liveConducted = getConductedClassesLiveCount(code);
+            const attended = Math.min(data.attended, liveConducted);
+
+            document.getElementById('disp-sem').innerText = data.total;
+            document.getElementById('disp-cond').innerText = liveConducted;
+            document.getElementById('manual-attended-input').value = attended;
+
+            const req = 0.80;
+            const current = liveConducted > 0 ? (attended / liveConducted) : 1.0;
+            const percentage = (current * 100).toFixed(1);
+
+            const percEl = document.getElementById('disp-perc');
+            percEl.innerText = percentage + '%';
+            if (current < 0.75) percEl.style.color = '#ef4444';
+            else if (current >= 0.80) percEl.style.color = '#10b981';
+            else percEl.style.color = '#0f172a';
+
+            let totalAllowedBunksThisSem = Math.floor(data.total * 0.25);
+            document.getElementById('bunks-capacitator-container').innerHTML = `<div class="mt-2 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-bold uppercase tracking-wider">TOTAL DISCRETIONARY BUNKS FOR SEMESTER: <span class="text-[#0b0f17] font-black font-mono">${totalAllowedBunksThisSem}</span></div>`;
+
+            const m = document.getElementById('disp-meter');
+            if (liveConducted === 0) {
+                m.innerHTML = '<span class="text-gray-500">NO CLASSES<br>YET</span>';
+            } else if (current >= req) {
+                let s = 0;
+                while ((attended) / (liveConducted + s + 1) >= req) s++;
+                m.innerHTML = `<span class="text-green-600 uppercase tracking-wider">Safe Bunks<br><span class="text-xl font-black">${s}</span></span>`;
+            } else {
+                let r = 0;
+                while ((attended + r) / (liveConducted + r) < req) r++;
+                m.innerHTML = `<span class="text-red-600 uppercase tracking-wider">Classes Req<br><span class="text-xl font-black">${r}</span></span>`;
+            }
+        }
+
+        /* =========================================
+           STUDENT: LEAVE SUBMISSION
+           ========================================= */
+        async function submitLeave() {
+            const roll = document.getElementById('leave-roll').value.trim();
+            const email = document.getElementById('leave-email').value.trim();
+            const prof = document.getElementById('leave-target-prof').value;
+            const startDate = document.getElementById('leave-start-date').value;
+            const endDate = document.getElementById('leave-end-date').value;
+            const reason = document.getElementById('leave-reason').value.trim();
+            const fileInput = document.getElementById('leave-file');
+            
+            if (!roll || !prof || !startDate || !endDate || !reason) return alert('Mandatory fields missing.');
+            
+            const formData = new FormData();
+            formData.append('enrollment_id', roll);
+            formData.append('student_email', email);
+            formData.append('assigned_prof', prof);
+            formData.append('start_date', startDate);
+            formData.append('end_date', endDate);
+            formData.append('reason', reason);
+            formData.append('ticket_type', 'MEDICAL');
+            if (fileInput && fileInput.files.length > 0) {
+                formData.append('attachment', fileInput.files[0]);
+            }
+            
+            try {
+                const res = await fetch('/api/student/submit_ticket', {
+                    method: 'POST',
+                    body: formData // Let the browser set the multipart/form-data boundary automatically
+                });
+                const d = await res.json();
+                if (d.success) {
+                    showToast('Leave Ticket Transmitted Successfully.');
+                    document.getElementById('leave-roll').value = '';
+                    document.getElementById('leave-email').value = '';
+                    document.getElementById('leave-start-date').value = '';
+                    document.getElementById('leave-end-date').value = '';
+                    document.getElementById('leave-reason').value = '';
+                    if (fileInput) fileInput.value = '';
+                }
+            } catch(e) {}
+        }
+        /* =========================================
+           SESSION RESTORATION ON PAGE REFRESH
+           ========================================= */
+        (function restoreSessionFromCache() {
+            var cachedId = localStorage.getItem('subnettx_logged_user_id');
+            var cachedRole = localStorage.getItem('subnettx_session_role');
+            if (!cachedId || !cachedRole) return;
+
+            try {
+                var cachedFacName = localStorage.getItem('subnettx_fac_name') || '';
+                var cachedSubjCode = localStorage.getItem('subnettx_fac_subj_code') || '';
+                var cachedSubjName = localStorage.getItem('subnettx_fac_subj_name') || '';
+
+                // Ensure strings are flat (guard against stale array fragments)
+                if (cachedFacName.startsWith('[') || cachedFacName.startsWith('{')) {
+                    try { cachedFacName = JSON.parse(cachedFacName); if (Array.isArray(cachedFacName)) cachedFacName = cachedFacName[0] || ''; } catch(e) { cachedFacName = ''; }
+                }
+                if (cachedSubjCode.startsWith('[') || cachedSubjCode.startsWith('{')) {
+                    try { cachedSubjCode = JSON.parse(cachedSubjCode); if (Array.isArray(cachedSubjCode)) cachedSubjCode = cachedSubjCode[0] || ''; } catch(e) { cachedSubjCode = ''; }
+                }
+                if (cachedSubjName.startsWith('[') || cachedSubjName.startsWith('{')) {
+                    try { cachedSubjName = JSON.parse(cachedSubjName); if (Array.isArray(cachedSubjName)) cachedSubjName = cachedSubjName[0] || ''; } catch(e) { cachedSubjName = ''; }
+                }
+
+                if (cachedRole === 'faculty') {
+                    document.getElementById('portal-prof').style.display = 'block';
+                    document.getElementById('portal-stud').style.display = 'none';
+                    document.getElementById('role-flag').innerText = 'FACULTY AUDIT INTERFACE';
+                    
+                    var fb = document.getElementById('faculty-banner');
+                    if (fb && cachedFacName) {
+                        fb.innerText = 'Faculty: ' + String(cachedFacName) + ' | Course Track: ' + String(cachedSubjCode) + ' - ' + String(cachedSubjName);
+                        fb.classList.remove('hidden');
+                    }
+                    loadNotifications(PROF_NOTIFICATIONS);
+                    startLiveLogPollingLoop();
+                    startLiveTicketPollingLoop();
+                } else {
+                    currentRoll = cachedId;
+                    document.getElementById('portal-stud').style.display = 'block';
+                    document.getElementById('portal-prof').style.display = 'none';
+                    document.getElementById('role-flag').innerText = 'STUDENT UTILITY PORTAL';
+                    loadNotifications(STUD_NOTIFICATIONS);
+                    runCheckin();
+                    startStudentNoticesLoop();
+                }
+            } catch (err) {
+                console.error('Session restoration error:', err);
+            }
+        })();
+    </script>
+</body>
+</html>

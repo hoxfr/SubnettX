@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SubnettX | Complete User Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: #f8fafc;
+            background-image: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #0b0f17;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+    <div class="bg-white border border-[#cbd5e1] p-8 rounded-lg shadow-md max-w-md w-full">
+        <!-- Single Unified SubnettX Logo -->
+        <div class="flex flex-col items-center mb-6">
+            <svg class="h-8 w-8 text-[#0b0f17] mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            <span class="text-xl font-black tracking-tighter text-[#0b0f17] uppercase">Subnett<span class="bg-[#0b0f17] text-white px-1.5 py-0.5 rounded ml-0.5 font-mono">X</span></span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-[#475569] mt-3">Complete Workspace Profile</h2>
+        </div>
+
+        <form id="profile-form" class="space-y-4" onsubmit="saveUserProfile(event)">
+            <div>
+                <label class="block text-xs font-bold uppercase text-[#475569] mb-1">User Identification Code / Roll Number</label>
+                <input type="text" id="profile-uid" required placeholder="e.g., 260307 or PROF-101" class="w-full p-2 border border-[#cbd5e1] rounded bg-[#f8fafc] font-mono text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-[#475569] mb-1">Full Legal Name</label>
+                <input type="text" id="profile-name" required placeholder="e.g., Anurag Singh" class="w-full p-2 border border-[#cbd5e1] rounded bg-white">
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-[#475569] mb-1">Institutional Email Address</label>
+                <input type="email" id="profile-email" required placeholder="e.g., anurag@university.edu" class="w-full p-2 border border-[#cbd5e1] rounded bg-white">
+            </div>
+
+            <button type="submit" class="w-full bg-[#0b0f17] text-white p-2 rounded font-bold hover:bg-[#475569] transition mt-2">Commit Profile Details</button>
+        </form>
+
+        <div id="save-success-msg" class="hidden text-center text-xs font-bold text-[#10b981] uppercase mt-4 tracking-wider">&#10003; Profile Saved successfully! Redirecting back...</div>
+
+        <div class="mt-6 pt-4 border-t border-[#cbd5e1] text-center">
+            <a href="/" class="text-xs font-semibold text-[#475569] hover:underline">&larr; Cancel &amp; Return to Control Panel</a>
+        </div>
+    </div>
+
+    <script>
+        function saveUserProfile(e) {
+            e.preventDefault();
+            const uid = document.getElementById("profile-uid").value.trim();
+            const name = document.getElementById("profile-name").value.trim();
+            const email = document.getElementById("profile-email").value.trim();
+
+            fetch('/api/user/save_profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enrollment_id: uid, fullname: name, email: email })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById("save-success-msg").classList.remove("hidden");
+                    setTimeout(() => { window.location.href = "/"; }, 2000);
+                } else {
+                    alert("Error: " + data.message);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
