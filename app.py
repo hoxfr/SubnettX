@@ -300,6 +300,7 @@ def api_get_token():
     freq = get_ultrasonic_freq(block_id)
     return jsonify({
         "status": "active",
+        "timestamp_ms": int(time.time() * 1000),
         "token": token,
         "current_token": token,
         "time_block_id": block_id,
