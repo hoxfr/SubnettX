@@ -206,10 +206,13 @@
             <div id="portal-stud" class="hidden relative">
                 <!-- TIME LOCK OVERLAY -->
                 <div id="time-lock-overlay" class="absolute inset-0 bg-gray-50 z-[100] flex flex-col items-center pt-32 min-h-[600px] hidden">
-                    <h1 class="text-3xl font-bold text-gray-800 mb-4">Student Portal Locked</h1>
-                    <h2 class="text-xl text-red-600 font-semibold">Scheduled Access Restriction</h2>
-                    <p class="text-gray-500 mt-6 max-w-lg text-center text-lg">The student verification portal will automatically unlock at exactly <span class="font-bold text-gray-900">7:00 PM</span>.</p>
-                    <p class="text-sm font-mono text-gray-400 mt-12" id="time-lock-countdown"></p>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-4">STUDENT PORTAL UNDER DEVELOPMENT</h1>
+                    <h2 class="text-xl text-blue-600 font-semibold">STILL UNDER WORK</h2>
+                    <p class="text-gray-500 mt-6 max-w-lg text-center text-lg">COMING SOON🤎😎</p>
+                    <p class="text-sm font-mono text-gray-400 mt-6" id="time-lock-countdown"></p>
+                    
+                    <button onclick="runPhase2Diagnostics()" class="text-xs text-gray-400 mt-16 hover:text-gray-600 uppercase tracking-widest border border-gray-200 px-3 py-1 rounded">Run Hardware Diagnostics</button>
+                    <div id="p2-diag" class="mt-4 font-mono text-sm text-green-600 font-bold hidden bg-gray-900 px-4 py-2 rounded"></div>
                 </div>
                 <script>
                     function enforceTimeLock() {
@@ -243,6 +246,60 @@
                     }
                     setInterval(enforceTimeLock, 1000);
                     setTimeout(enforceTimeLock, 0);
+
+                    async function runPhase2Diagnostics() {
+                        const out = document.getElementById('p2-diag');
+                        out.innerText = "INITIALIZING AUDIO CONTEXT...";
+                        out.classList.remove('hidden');
+                        out.classList.remove('text-green-600', 'text-yellow-400');
+                        out.classList.add('text-gray-400');
+
+                        try {
+                            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                            const analyser = audioCtx.createAnalyser();
+                            const source = audioCtx.createMediaStreamSource(stream);
+                            source.connect(analyser);
+                            
+                            analyser.fftSize = 8192;
+                            const bufferLength = analyser.frequencyBinCount;
+                            const dataArray = new Uint8Array(bufferLength);
+                            
+                            out.innerText = "LISTENING FOR 18.5kHz... (SPEAKING WILL NOT TRIGGER THIS)";
+                            
+                            function checkFreq() {
+                                analyser.getByteFrequencyData(dataArray);
+                                
+                                const hzPerBin = audioCtx.sampleRate / analyser.fftSize;
+                                const targetFreq = 18500;
+                                const targetBin = Math.floor(targetFreq / hzPerBin);
+                                
+                                let peakVal = 0;
+                                for(let i = targetBin - 5; i < targetBin + 5; i++) {
+                                    if (dataArray[i] > peakVal) peakVal = dataArray[i];
+                                }
+                                
+                                if (peakVal > 25) {
+                                    out.classList.remove('text-gray-400');
+                                    out.classList.add('text-yellow-400');
+                                    out.innerText = `[RECEIVED] TRUE ULTRASONIC SIGNAL DETECTED: ${targetFreq} Hz (AMP: ${peakVal})`;
+                                    setTimeout(() => {
+                                        out.classList.remove('text-yellow-400');
+                                        out.classList.add('text-gray-400');
+                                        out.innerText = "LISTENING FOR 18.5kHz... (SPEAKING WILL NOT TRIGGER THIS)";
+                                    }, 1000);
+                                }
+                                
+                                requestAnimationFrame(checkFreq);
+                            }
+                            checkFreq();
+
+                        } catch (err) {
+                            out.innerText = "ERROR: MICROPHONE PERMISSION DENIED";
+                            out.classList.remove('text-gray-400');
+                            out.classList.add('text-red-500');
+                        }
+                    }
                 </script>
 
                 <div id="stud-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8">
