@@ -204,48 +204,8 @@
 
             <!-- STUDENT DASHBOARD VIEW -->
             <div id="portal-stud" class="hidden relative">
-                <!-- TIME LOCK OVERLAY -->
-                <div id="time-lock-overlay" class="absolute inset-0 bg-gray-50 z-[100] flex flex-col items-center pt-32 min-h-[600px] hidden">
-                    <h1 class="text-3xl font-bold text-gray-800 mb-4">STUDENT PORTAL UNDER DEVELOPMENT</h1>
-                    <h2 class="text-xl text-blue-600 font-semibold">STILL UNDER WORK</h2>
-                    <p class="text-gray-500 mt-6 max-w-lg text-center text-lg">COMING SOON🤎😎</p>
-                    <p class="text-sm font-mono text-gray-400 mt-6" id="time-lock-countdown"></p>
-                    
-                    <button onclick="runPhase2Diagnostics()" class="text-xs text-gray-400 mt-16 hover:text-gray-600 uppercase tracking-widest border border-gray-200 px-3 py-1 rounded">Run Hardware Diagnostics</button>
-                    <div id="p2-diag" class="mt-4 font-mono text-sm text-green-600 font-bold hidden bg-gray-900 px-4 py-2 rounded"></div>
-                </div>
-                <script>
-                    function enforceTimeLock() {
-                        const now = new Date();
-                        const overlay = document.getElementById('time-lock-overlay');
-                        const studGrid = document.getElementById('stud-grid');
-                        if (now.getHours() < 19) {
-                            if(overlay) overlay.classList.remove('hidden');
-                            if(studGrid) {
-                                studGrid.style.opacity = '0';
-                                studGrid.style.pointerEvents = 'none';
-                            }
-                            // Calculate remaining time
-                            const target = new Date();
-                            target.setHours(19, 0, 0, 0);
-                            const diff = target - now;
-                            if(diff > 0) {
-                                const h = Math.floor(diff / (1000 * 60 * 60));
-                                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                const s = Math.floor((diff % (1000 * 60)) / 1000);
-                                const countdownStr = `T-MINUS ${h}H ${m}M ${s}S`;
-                                document.getElementById('time-lock-countdown').innerText = countdownStr;
-                            }
-                        } else {
-                            if(overlay) overlay.classList.add('hidden');
-                            if(studGrid) {
-                                studGrid.style.opacity = '1';
-                                studGrid.style.pointerEvents = 'auto';
-                            }
-                        }
-                    }
-                    setInterval(enforceTimeLock, 1000);
-                    setTimeout(enforceTimeLock, 0);
+                
+
 
                     async function runPhase2Diagnostics() {
                         const out = document.getElementById('p2-diag');
@@ -303,6 +263,11 @@
                 </script>
 
                 <div id="stud-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Diagnostic Button -->
+                    <div class="col-span-full mb-4">
+                        <button onclick="runPhase2Diagnostics()" class="text-xs text-gray-400 hover:text-gray-600 uppercase tracking-widest border border-gray-200 px-3 py-1 rounded">Run Hardware Diagnostics</button>
+                        <div id="p2-diag" class="mt-4 font-mono text-sm text-green-600 font-bold hidden bg-gray-900 px-4 py-2 rounded"></div>
+                    </div>
                     <!-- Column 1 -->
                     <div class="space-y-8">
                         <!-- Live Camera Scanner -->
