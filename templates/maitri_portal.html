@@ -12,6 +12,71 @@
         .juno-nav-item:hover, .juno-nav-active { background-color: #007bff; color: white; }
         .juno-header { background-color: white; border-bottom: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
     </style>
+<style>
+        /* PREMIUM MINIMAL 2-COLOR THEME */
+        :root {
+            --bg-color: #0d1117; /* Deep Graphite */
+            --card-bg: #161b22;
+            --accent: #58a6ff; /* Premium Blue */
+            --accent-hover: #1f6feb;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --border-color: #30363d;
+        }
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; }
+        
+        /* Dashboard Card Animation */
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(25px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card, .bg-white { 
+            background: var(--card-bg) !important; 
+            border: 1px solid var(--border-color) !important; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important; 
+            animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+        
+        .btn-primary { 
+            background: var(--accent); 
+            color: #ffffff; 
+            padding: 0.75rem 1.5rem; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            font-size: 0.75rem; 
+            letter-spacing: 0.05em; 
+            transition: all 0.3s ease; 
+            cursor: pointer; 
+            border: none; 
+            box-shadow: 0 4px 14px 0 rgba(88, 166, 255, 0.39);
+        }
+        .btn-primary:hover { 
+            background: var(--accent-hover); 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(88, 166, 255, 0.5);
+        }
+        
+        .input-field { 
+            width: 100%; 
+            border: 1px solid var(--border-color); 
+            padding: 0.75rem; 
+            border-radius: 8px; 
+            font-size: 0.875rem; 
+            outline: none; 
+            background: var(--bg-color); 
+            color: var(--text-main);
+            transition: border-color 0.3s ease;
+        }
+        .input-field:focus { border-color: var(--accent); }
+        
+        .text-[var(--text-muted)], .text-gray-600 { color: var(--text-muted) !important; }
+        .text-[var(--text-main)], .text-black, .text-slate-800 { color: var(--text-main) !important; }
+        .border-gray-100, .border-gray-200, .border-slate-700, .border-slate-300 { border-color: var(--border-color) !important; }
+</style>
 </head>
 <body class="flex overflow-hidden h-screen">
 
@@ -20,7 +85,7 @@
         <div class="p-4 border-b border-gray-600 flex items-center justify-center bg-[#23272b]">
             <h1 class="text-xl font-bold text-white tracking-widest">MAITRI ERP</h1>
         </div>
-        <div class="p-4 text-xs font-bold uppercase tracking-wider text-gray-500">Navigation</div>
+        <div class="p-4 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Navigation</div>
         <div class="flex-1 overflow-y-auto text-sm">
             <div class="juno-nav-item">Dashboard</div>
             <div class="juno-nav-item juno-nav-active font-bold">Attendance Management</div>
@@ -29,7 +94,7 @@
             <div class="juno-nav-item">Leave Approvals</div>
             <div class="juno-nav-item">Profile Settings</div>
         </div>
-        <div class="p-4 text-xs text-gray-500 border-t border-gray-600 text-center">
+        <div class="p-4 text-xs text-[var(--text-muted)] border-t border-gray-600 text-center">
             Powered by Juno Campus
         </div>
     </div>
@@ -53,7 +118,7 @@
             <div class="mb-6 flex justify-between items-end">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800">Attendance Log Viewer</h2>
-                    <p class="text-sm text-gray-500 mt-1">View and verify uploaded attendance records.</p>
+                    <p class="text-sm text-[var(--text-muted)] mt-1">View and verify uploaded attendance records.</p>
                 </div>
                 <div class="text-xs bg-green-100 text-green-800 border border-green-300 px-4 py-2 rounded shadow-sm flex items-center gap-2">
                     <span class="text-lg">&#10003;</span>
@@ -119,7 +184,7 @@
             if (isPresent) {
                 presentCount++;
                 statusHtml = `<span class="px-2 py-1 bg-green-100 text-green-800 text-xs font-bold rounded">P</span>`;
-                authHtml = `<span class="text-xs text-gray-500 font-mono">Dual-Vector (SubnettX)</span>`;
+                authHtml = `<span class="text-xs text-[var(--text-muted)] font-mono">Dual-Vector (SubnettX)</span>`;
             } else {
                 statusHtml = `<span class="px-2 py-1 bg-red-100 text-red-800 text-xs font-bold rounded">A</span>`;
                 authHtml = `<span class="text-xs text-gray-400 font-mono">--</span>`;
