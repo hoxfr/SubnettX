@@ -299,41 +299,13 @@
                         </div>
                         <!-- Classes Checkin -->
                         <div class="card border border-slate-700 shadow-xl rounded-xl">
-                            <h2 class="font-bold text-lg mb-4">Classes Checkin</h2>
-                            <select id="subject-selector" class="input-field text-xs mb-4" onchange="runCheckin()">
-                                <option value="CSE1101">CSE1101: Computer Programming using C</option>
-                                <option value="MTH1801">MTH1801: Calculus for Engineers</option>
-                                <option value="COM1101">COM1101: Communication and Writing Skills</option>
-                                <option value="MEC1101">MEC1101: Elements of Mechanical Engineering</option>
-                                <option value="VAL1801">VAL1801: Engineering Ethics</option>
-                                <option value="ENV1101">ENV1101: Environmental Science</option>
-                                <option value="MAD1101">MAD1101: Design Thinking</option>
-                            </select>
-                            <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
-                                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Semester Classes</span>
-                                <span id="disp-sem" class="font-mono font-bold text-sm">--</span>
+                            <h2 class="font-bold text-lg mb-4 text-gray-300">Classes Checkin</h2>
+                            <div class="flex flex-col items-center justify-center py-8">
+                                <svg class="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7z"></path></svg>
+                                <h3 class="text-md font-bold text-gray-400">Under Development</h3>
+                                <p class="text-xs text-gray-400 text-center mt-1">This module will be available in Phase 2.</p>
                             </div>
-                            <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-2">
-                                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Classes Conducted</span>
-                                <span id="disp-cond" class="font-mono font-bold text-sm">--</span>
-                            </div>
-                            <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-4">
-                                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Classes Attended</span>
-                                <input type="number" id="manual-attended-input" min="0" value="11" onchange="updateAttendedValueLive(this.value)" class="w-16 text-right font-bold border border-slate-300 rounded px-1 text-sm bg-white focus:outline-none">
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="bg-gray-50 border border-gray-200 p-4 rounded text-center flex flex-col justify-center">
-                                    <div class="text-[0.65rem] font-bold text-gray-500 uppercase tracking-wider mb-1">Current %</div>
-                                    <div id="disp-perc" class="text-3xl font-black text-[#0f172a]">--%</div>
-                                </div>
-                                <div class="bg-gray-50 border border-gray-200 p-4 rounded text-center flex flex-col justify-center">
-                                    <div class="text-[0.65rem] font-bold text-gray-500 uppercase tracking-wider mb-1">Target: 80%</div>
-                                    <div id="disp-meter" class="text-xs font-bold mt-1">--</div>
-                                </div>
-                            </div>
-                            <div id="bunks-capacitator-container"></div>
                         </div>
-                        
                         <!-- Live Faculty Announcements Card -->
                         <div class="card border border-slate-700 shadow-xl rounded-xl">
                             <h2 class="font-bold text-lg mb-2">Live Faculty Announcements</h2>
@@ -348,60 +320,20 @@
                     <div class="space-y-8">
                         <!-- Crypto Ledger -->
                         <div class="card border border-slate-700 shadow-xl rounded-xl">
-                            <h2 class="font-bold text-lg mb-2">Cryptographic Digital Ledger</h2>
-                            <p class="text-xs text-gray-500 mb-4">Tamper-proof verifiable attendance receipts.</p>
-                            <table class="w-full text-left text-xs">
-                                <thead class="uppercase text-gray-500 border-b border-gray-200">
-                                    <tr><th class="pb-2">Date</th><th class="pb-2">Course</th><th class="pb-2">Action</th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr><td class="py-3 font-mono">2026-08-18</td><td class="py-3 font-mono">CS301</td><td><button class="text-xs font-bold text-blue-600 uppercase border border-blue-600 px-2 py-1 rounded hover:bg-blue-600 hover:text-white transition">Download</button></td></tr>
-                                </tbody>
-                            </table>
+                            <h2 class="font-bold text-lg mb-2 text-gray-300">Cryptographic Digital Ledger</h2>
+                            <div class="flex flex-col items-center justify-center py-8">
+                                <svg class="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7z"></path></svg>
+                                <h3 class="text-md font-bold text-gray-400">Under Development</h3>
+                                <p class="text-xs text-gray-400 text-center mt-1">This module will be available in Phase 2.</p>
+                            </div>
                         </div>
                         <!-- Leave Application -->
                         <div class="card border border-slate-700 shadow-xl rounded-xl">
-                            <h2 class="font-bold text-lg mb-2">Instant Leave Application Form</h2>
-                            <p class="text-xs text-gray-500 mb-4">Submit official leave documents directly.</p>
-                            <div class="space-y-4">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Roll Number</label>
-                                        <input type="text" id="leave-roll" class="input-field text-xs" placeholder="e.g. 260307">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Personal Email</label>
-                                        <input type="email" id="leave-email" class="input-field text-xs" placeholder="anurag@gmail.com">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Target Professor</label>
-                                    <select id="leave-target-prof" class="input-field text-xs">
-                                        <option value="ski@6767">Prof. Skibidi Saxena (Faculty Chair - CSE)</option>
-                                        <option value="riz@1234">Dr. Rizzler Rastogi (Faculty Co-Chair - MTH)</option>
-                                        <option value="gya@9876">Prof. Kai Fanat (Humanities Head - COM)</option>
-                                        <option value="sig@4567">Dr. Duke Jhatka (Mechanical Head - MEC)</option>
-                                    </select>
-                                </div>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Leave Start Date</label>
-                                        <input type="date" id="leave-start-date" class="input-field text-xs">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Leave End Date</label>
-                                        <input type="date" id="leave-end-date" class="input-field text-xs">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Reason Description</label>
-                                    <textarea id="leave-reason" class="input-field text-xs h-20 resize-none" placeholder="Reason for absence..."></textarea>
-                                </div>
-                                <div>
-                                    <label class="block text-[0.65rem] font-bold uppercase tracking-wider text-gray-500 mb-2">Upload Verification Certificate</label>
-                                    <input type="file" id="leave-file" class="input-field text-xs" accept=".png,.pdf">
-                                </div>
-                                <button onclick="submitLeave()" class="w-full btn-primary mt-2">Transmit Request</button>
+                            <h2 class="font-bold text-lg mb-2 text-gray-300">Leave Ticket Dashboard</h2>
+                            <div class="flex flex-col items-center justify-center py-8">
+                                <svg class="w-10 h-10 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7z"></path></svg>
+                                <h3 class="text-md font-bold text-gray-400">Under Development</h3>
+                                <p class="text-xs text-gray-400 text-center mt-1">This module will be available in Phase 2.</p>
                             </div>
                         </div>
                     </div>
