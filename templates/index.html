@@ -163,8 +163,7 @@
                             </div>
                         </div>
                     </div>
-                    
-                        <!-- Maitri Sync Engine -->
+                    <!-- Maitri Sync Engine -->
                         <div class="card border border-slate-700 shadow-xl rounded-xl mt-6">
                             <h2 class="font-bold text-lg mb-4 text-indigo-600">&#128452; Maitri ERP Sync Engine</h2>
                             
@@ -251,10 +250,49 @@
 
             <!-- STUDENT DASHBOARD VIEW -->
             <div id="portal-stud" class="hidden relative">
-                
+                <!-- TIME LOCK OVERLAY -->
+                <div id="time-lock-overlay" class="absolute inset-0 bg-gray-50 z-[100] flex flex-col items-center pt-32 min-h-[600px] hidden">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-4">STUDENT PORTAL UNDER DEVELOPMENT</h1>
+                    <h2 class="text-xl text-blue-600 font-semibold">STILL UNDER WORK</h2>
+                    <p class="text-gray-500 mt-6 max-w-lg text-center text-lg">COMING SOON🤎😎</p>
+                    <p class="text-sm font-mono text-gray-400 mt-6" id="time-lock-countdown"></p>
+                    
+                    <button onclick="runPhase2Diagnostics()" class="text-xs text-gray-400 mt-16 hover:text-gray-600 uppercase tracking-widest border border-gray-200 px-3 py-1 rounded">Run Hardware Diagnostics</button>
+                    <div id="p2-diag" class="mt-4 font-mono text-sm text-green-600 font-bold hidden bg-gray-900 px-4 py-2 rounded"></div>
+                </div>
+                <script>
+                    function enforceTimeLock() {
+                        const now = new Date();
+                        const overlay = document.getElementById('time-lock-overlay');
+                        const studGrid = document.getElementById('stud-grid');
+                        if (now.getHours() < 19) {
+                            if(overlay) overlay.classList.remove('hidden');
+                            if(studGrid) {
+                                studGrid.style.opacity = '0';
+                                studGrid.style.pointerEvents = 'none';
+                            }
+                            // Calculate remaining time
+                            const target = new Date();
+                            target.setHours(19, 0, 0, 0);
+                            const diff = target - now;
+                            if(diff > 0) {
+                                const h = Math.floor(diff / (1000 * 60 * 60));
+                                const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                const s = Math.floor((diff % (1000 * 60)) / 1000);
+                                const countdownStr = `T-MINUS ${h}H ${m}M ${s}S`;
+                                document.getElementById('time-lock-countdown').innerText = countdownStr;
+                            }
+                        } else {
+                            if(overlay) overlay.classList.add('hidden');
+                            if(studGrid) {
+                                studGrid.style.opacity = '1';
+                                studGrid.style.pointerEvents = 'auto';
+                            }
+                        }
+                    }
+                    setInterval(enforceTimeLock, 1000);
+                    setTimeout(enforceTimeLock, 0);
 
-
-                    <script>
                     async function runPhase2Diagnostics() {
                         const out = document.getElementById('p2-diag');
                         out.innerText = "INITIALIZING AUDIO CONTEXT...";
@@ -262,11 +300,16 @@
                         out.classList.remove('text-green-600', 'text-yellow-400');
                         out.classList.add('text-gray-400');
 
+                        // MED-4 FIX: Clean up any previous diagnostics session
+                        if (diagRafId) { cancelAnimationFrame(diagRafId); diagRafId = null; }
+                        if (diagMicStream) { diagMicStream.getTracks().forEach(t => t.stop()); diagMicStream = null; }
+                        if (diagAudioCtx) { diagAudioCtx.close().catch(() => {}); diagAudioCtx = null; }
+
                         try {
-                            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                            const analyser = audioCtx.createAnalyser();
-                            const source = audioCtx.createMediaStreamSource(stream);
+                            diagMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                            diagAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                            const analyser = diagAudioCtx.createAnalyser();
+                            const source = diagAudioCtx.createMediaStreamSource(diagMicStream);
                             source.connect(analyser);
                             
                             analyser.fftSize = 8192;
@@ -278,7 +321,7 @@
                             function checkFreq() {
                                 analyser.getByteFrequencyData(dataArray);
                                 
-                                const hzPerBin = audioCtx.sampleRate / analyser.fftSize;
+                                const hzPerBin = diagAudioCtx.sampleRate / analyser.fftSize;
                                 const targetFreq = 18500;
                                 const targetBin = Math.floor(targetFreq / hzPerBin);
                                 
@@ -287,6 +330,7 @@
                                     if (dataArray[i] > peakVal) peakVal = dataArray[i];
                                 }
                                 
+                                // MED-6 FIX: Threshold = 25 (unified with pipeline)
                                 if (peakVal > 25) {
                                     out.classList.remove('text-gray-400');
                                     out.classList.add('text-yellow-400');
@@ -298,7 +342,7 @@
                                     }, 1000);
                                 }
                                 
-                                requestAnimationFrame(checkFreq);
+                                diagRafId = requestAnimationFrame(checkFreq);
                             }
                             checkFreq();
 
@@ -311,11 +355,6 @@
                 </script>
 
                 <div id="stud-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <!-- Diagnostic Button -->
-                    <div class="col-span-full mb-4">
-                        <button onclick="runPhase2Diagnostics()" class="text-xs text-gray-400 hover:text-gray-600 uppercase tracking-widest border border-gray-200 px-3 py-1 rounded">Run Hardware Diagnostics</button>
-                        <div id="p2-diag" class="mt-4 font-mono text-sm text-green-600 font-bold hidden bg-gray-900 px-4 py-2 rounded"></div>
-                    </div>
                     <!-- Column 1 -->
                     <div class="space-y-8">
                         <!-- Live Camera Scanner -->
@@ -347,7 +386,7 @@
                         <!-- Classes Checkin -->
                         <div class="card border border-slate-700 shadow-xl rounded-xl">
                             <h2 class="font-bold text-lg mb-4">Classes Checkin</h2>
-                            <select id="subject-selector" class="input-field text-xs mb-4" onchange="runCheckin()">
+                            <select id="subject-selector" class="input-field text-xs mb-4" onchange="currentSubject = this.value; runCheckin()">
                                 <option value="CSE1101">CSE1101: Computer Programming using C</option>
                                 <option value="MTH1801">MTH1801: Calculus for Engineers</option>
                                 <option value="COM1101">COM1101: Communication and Writing Skills</option>
@@ -479,6 +518,25 @@
         let audioCtx = null;
         let oscillatorNode = null;
         let currentUltrasonicFreq = 0;
+
+        // CRIT-4 FIX: Track active subject for attendance payload
+        let currentSubject = 'CSE1101';
+
+        // HIGH-5 FIX: Global mic references for proper cleanup
+        let scannerMicStream = null;
+        let scannerMicCtx = null;
+        let scannerMicAnalyser = null;
+
+        // HIGH-6 FIX: Reusable beep AudioContext
+        let beepAudioCtx = null;
+
+        // MED-5 FIX: Rolling FFT peak buffer for noise resilience
+        let ultrasonicPeakBuffer = [];
+
+        // MED-4 FIX: Diagnostics cleanup references
+        let diagRafId = null;
+        let diagAudioCtx = null;
+        let diagMicStream = null;
 
         /* =========================================
            NOTIFICATION SYSTEM
@@ -723,7 +781,8 @@
 
         async function fetchAndRenderToken() {
             try {
-                const r = await fetch('/api/get_token');
+                const facId = localStorage.getItem('subnettx_logged_user_id') || '';
+                const r = await fetch('/api/get_token?faculty_id=' + encodeURIComponent(facId));
                 const d = await r.json();
                 const token = d.token || d.current_token || '000000';
                 if (qrInstance) qrInstance.makeCode(token);
@@ -992,16 +1051,18 @@
         
         function beepSuccess() {
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
+                // HIGH-6 FIX: Reuse single AudioContext instead of creating one per beep
+                if (!beepAudioCtx) beepAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (beepAudioCtx.state === 'suspended') beepAudioCtx.resume();
+                const oscillator = beepAudioCtx.createOscillator();
+                const gainNode = beepAudioCtx.createGain();
                 oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
-                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(800, beepAudioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, beepAudioCtx.currentTime);
                 oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
+                gainNode.connect(beepAudioCtx.destination);
                 oscillator.start();
-                setTimeout(() => oscillator.stop(), 100);
+                oscillator.stop(beepAudioCtx.currentTime + 0.1);
             } catch(e) {}
         }
 
@@ -1027,16 +1088,15 @@
                 document.getElementById('success-tick').classList.add('hidden');
 
                 // VECTOR A: Attempt to open microphone for ultrasonic detection
-                let micAnalyser = null;
-                let micStream = null;
                 let proximityMode = 'none';
+                // HIGH-5 FIX: Use global mic references for proper cleanup
                 try {
-                    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    const micCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const source = micCtx.createMediaStreamSource(micStream);
-                    micAnalyser = micCtx.createAnalyser();
-                    micAnalyser.fftSize = 8192;  // High resolution FFT for ultrasonic precision
-                    source.connect(micAnalyser);
+                    scannerMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    scannerMicCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = scannerMicCtx.createMediaStreamSource(scannerMicStream);
+                    scannerMicAnalyser = scannerMicCtx.createAnalyser();
+                    scannerMicAnalyser.fftSize = 8192;  // High resolution FFT for ultrasonic precision
+                    source.connect(scannerMicAnalyser);
                     proximityMode = 'ultrasonic';
                     status.innerText = 'CAMERA + MIC ACTIVE (ULTRASONIC)';
                 } catch(micErr) {
@@ -1044,7 +1104,6 @@
                     console.warn('Mic unavailable, falling back to LEVC mode:', micErr);
                     proximityMode = 'levc_fallback';
                     status.innerText = 'CAMERA ACTIVE (LEVC MODE)';
-                    // DO NOT UNHIDE HERE! Enforce QR first.
                 }
 
                 // Scan loop: every 3s, grab token + detect ultrasonic freq + verify
@@ -1066,11 +1125,12 @@
                     let activeProximityMode = proximityMode;
 
                     // Real-time Mic Telemetry Analysis (done every frame)
-                    if (proximityMode === 'ultrasonic' && micAnalyser) {
-                        const bufferLength = micAnalyser.frequencyBinCount;
+                    // HIGH-5 FIX: Use global scannerMicAnalyser
+                    if (proximityMode === 'ultrasonic' && scannerMicAnalyser) {
+                        const bufferLength = scannerMicAnalyser.frequencyBinCount;
                         const dataArray = new Uint8Array(bufferLength);
-                        micAnalyser.getByteFrequencyData(dataArray);
-                        const binSize = micAnalyser.context.sampleRate / micAnalyser.fftSize;
+                        scannerMicAnalyser.getByteFrequencyData(dataArray);
+                        const binSize = scannerMicAnalyser.context.sampleRate / scannerMicAnalyser.fftSize;
                         const minBin = Math.floor(18000 / binSize);
                         const maxBin = Math.ceil(20000 / binSize);
                         let peakVal = 0, peakBin = minBin;
@@ -1079,11 +1139,16 @@
                         }
                         detectedFreq = Math.round(peakBin * binSize);
                         
-                        document.getElementById('live-mic-telemetry').innerText = `Live Mic: ${detectedFreq} Hz`;
+                        // MED-5 FIX: Rolling peak buffer (last 10 frames) for noise resilience
+                        ultrasonicPeakBuffer.push(peakVal);
+                        if (ultrasonicPeakBuffer.length > 10) ultrasonicPeakBuffer.shift();
+                        const rollingPeak = Math.max(...ultrasonicPeakBuffer);
+                        
+                        document.getElementById('live-mic-telemetry').innerText = `Live Mic: ${detectedFreq} Hz (pk:${rollingPeak})`;
 
-                        if (peakVal < 20) {
+                        // MED-6 FIX: Unified threshold at 25 (matches diagnostics)
+                        if (rollingPeak < 25) {
                             activeProximityMode = 'levc_fallback';
-                            // DO NOT UNHIDE HERE! Enforce QR first.
                         }
                     }
 
@@ -1221,6 +1286,16 @@
                 cameraStream.getTracks().forEach(t => t.stop());
                 cameraStream = null;
             }
+            // HIGH-5 FIX: Clean up microphone stream and AudioContext
+            if (scannerMicStream) {
+                scannerMicStream.getTracks().forEach(t => t.stop());
+                scannerMicStream = null;
+            }
+            if (scannerMicCtx) {
+                scannerMicCtx.close().catch(() => {});
+                scannerMicCtx = null;
+            }
+            scannerMicAnalyser = null;
             if (cameraScanLoop) { cancelAnimationFrame(cameraScanLoop); cameraScanLoop = null; }
             video.srcObject = null;
             status.innerText = 'Camera Off';
@@ -1229,6 +1304,8 @@
             document.getElementById('laser-line').style.display = 'none';
             document.getElementById('live-mic-telemetry').classList.add('hidden');
             document.getElementById('scan-result').classList.add('hidden');
+            // Reset rolling FFT buffer
+            ultrasonicPeakBuffer = [];
         }
 
         /* =========================================
@@ -1373,45 +1450,6 @@
                 console.error('Session restoration error:', err);
             }
         })();
-    
-        /* =========================================
-           MAITRI SYNC ENGINE (DEMO)
-           ========================================= */
-        function generateMaitriReport() {
-            const d = document.getElementById('maitri-date').value;
-            const s = document.getElementById('maitri-subject').options[document.getElementById('maitri-subject').selectedIndex].text;
-            if(!d || !s) return alert("Select Date and Subject first.");
-            
-            document.getElementById('maitri-step1').classList.add('hidden');
-            document.getElementById('maitri-step2').classList.remove('hidden');
-            
-            document.getElementById('maitri-report-title').innerText = `${s} | ${d}`;
-            
-            const present = Math.floor(Math.random() * 8) + 48; 
-            document.getElementById('maitri-present').innerText = present;
-            document.getElementById('maitri-absent').innerText = 62 - present - 2;
-        }
-
-        function resetMaitriSync() {
-            document.getElementById('maitri-step2').classList.add('hidden');
-            document.getElementById('maitri-step1').classList.remove('hidden');
-            document.getElementById('btn-push-maitri').innerHTML = `<span>Add it on Maitri</span>`;
-            document.getElementById('btn-push-maitri').disabled = false;
-        }
-
-        function pushToMaitri() {
-            const btn = document.getElementById('btn-push-maitri');
-            btn.disabled = true;
-            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>Syncing...</span>`;
-            
-            setTimeout(() => {
-                btn.innerHTML = `<span>&#10003; Synced</span>`;
-                alert("Success: The attendance has been successfully added on the Maitri portal.");
-                showToast("Maitri ERP sync complete.");
-                setTimeout(() => window.open('/maitri_portal', '_blank'), 1500);
-            }, 8000);
-        }
-
     </script>
 </body>
 </html>

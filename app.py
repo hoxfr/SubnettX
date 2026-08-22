@@ -93,6 +93,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 
@@ -101,6 +102,7 @@ def init_db():
         cursor = conn.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
 
         # --- Table 1: Student Registry ---
         cursor.execute('''
@@ -138,7 +140,10 @@ def init_db():
                 source_ip TEXT,
                 network_type TEXT,
                 recorded_latency REAL,
-                tracking_status TEXT
+                tracking_status TEXT,
+                qr_token TEXT,
+                detected_freq REAL,
+                levc_color TEXT
             )
         ''')
 
@@ -191,16 +196,7 @@ def init_db():
             )
         ''')
 
-        # --- Table 5: Attendance Ledger ---
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS attendance_ledger (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                enrollment_id TEXT NOT NULL,
-                subject_code TEXT,
-                date_stamped DATE,
-                scan_timestamp DATETIME
-            )
-        ''')
+        # --- Table 5: Attendance Ledger (authoritative schema defined above with DROP+CREATE) ---
 
         # --- Table 6: Broadcast Notices ---
         cursor.execute('''
@@ -298,17 +294,30 @@ def api_get_token():
     token = generate_token(block_id)
     remaining = get_seconds_remaining()
     freq = get_ultrasonic_freq(block_id)
-    return jsonify({
+
+    # CRIT-2 FIX: Only return ultrasonic_freq to authenticated faculty
+    faculty_id = request.args.get('faculty_id', '').strip()
+    is_faculty = False
+    if faculty_id:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("PRAGMA busy_timeout=5000")
+            fac = conn.execute("SELECT 1 FROM faculty_registry WHERE faculty_id = ?", (faculty_id,)).fetchone()
+            is_faculty = fac is not None
+
+    response = {
         "status": "active",
         "timestamp_ms": int(time.time() * 1000),
         "token": token,
         "current_token": token,
         "time_block_id": block_id,
         "seconds_remaining_in_block": remaining,
-        "ultrasonic_freq": freq,
         "levc_active": LEVC_STATE["active"],
         "levc_color": LEVC_STATE["color"] if LEVC_STATE["active"] else None
-    })
+    }
+    if is_faculty:
+        response["ultrasonic_freq"] = freq
+
+    return jsonify(response)
 
 
 # -----------------------------------------
@@ -325,13 +334,17 @@ def api_levc_trigger():
         "block_id": get_current_time_block()
     }
     print(f"[LEVC] Strobe event fired: {color} at {LEVC_STATE['issued_at']}")
-    # Auto-expire after TTL
-    def expire():
+    # Auto-expire after TTL (race-safe: only expire if state hasn't been replaced)
+    snapshot_issued_at = LEVC_STATE["issued_at"]
+    def expire(issued_at_when_spawned):
         import time
         time.sleep(LEVC_TTL_MS / 1000.0 + 0.5)
-        LEVC_STATE["active"] = False
-        print(f"[LEVC] Strobe window expired.")
-    threading.Thread(target=expire, daemon=True).start()
+        if LEVC_STATE.get("issued_at") == issued_at_when_spawned:
+            LEVC_STATE["active"] = False
+            print(f"[LEVC] Strobe window expired.")
+        else:
+            print(f"[LEVC] Expire skipped — newer strobe is active.")
+    threading.Thread(target=expire, args=(snapshot_issued_at,), daemon=True).start()
     return jsonify({"success": True, "color": color, "ttl_ms": LEVC_TTL_MS})
 
 
@@ -380,6 +393,7 @@ def api_verify_attendance():
                 conn.row_factory = sqlite3.Row
                 conn.execute("PRAGMA journal_mode=WAL")
                 conn.execute("PRAGMA synchronous=NORMAL")
+                conn.execute("PRAGMA busy_timeout=5000")
             
                 # Faculty check
                 fac = conn.execute("SELECT * FROM faculty_registry WHERE upper(faculty_id) = ?", (enrollment_id,)).fetchone()
@@ -405,6 +419,7 @@ def api_verify_attendance():
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA busy_timeout=5000")
 
             student = conn.execute("SELECT * FROM student_registry WHERE enrollment_id = ?", (enrollment_id,)).fetchone()
             if not student:
@@ -441,7 +456,7 @@ def api_verify_attendance():
                 network_type = 'INVALID'
             else:
                 # Token matched — now check proximity vectors
-                submitted_freq = data.get('detected_freq', 0)
+                submitted_freq = data.get('ultrasonic_freq', 0)
                 proximity_mode = data.get('proximity_mode', 'none')
                 expected_freq = get_ultrasonic_freq(current_block)
                 freq_tolerance = 150  # Hz tolerance for FFT bin resolution
@@ -460,9 +475,9 @@ def api_verify_attendance():
                     detail = f'Token + LEVC visual challenge passed. Physical presence confirmed.'
                     network_type = 'CLASSROOM'
                 else:
-                    status = 'VERIFIED'
-                    detail = f'Token matched.'
-                    network_type = 'CLASSROOM'
+                    status = 'FLAGGED'
+                    detail = f'\u26a0\ufe0f FLAGGED: No proximity vector provided. Token valid but physical presence unconfirmed.'
+                    network_type = 'NO_VECTOR'
 
             conn.execute('''
                 INSERT INTO verification_logs
@@ -478,6 +493,14 @@ def api_verify_attendance():
                 )).start()
 
             if status == 'VERIFIED':
+                # HIGH-3 FIX: Duplicate attendance guard — prevent double-counting
+                already = conn.execute(
+                    'SELECT COUNT(*) FROM attendance_ledger WHERE enrollment_id = ? AND subject_code = ? AND date_stamped = CURRENT_DATE',
+                    (enrollment_id, subject_code)
+                ).fetchone()[0]
+                if already > 0:
+                    return jsonify({"success": False, "error": "Already marked present for this subject today.", "status": "DUPLICATE"}), 409
+
                 conn.execute('''
                     UPDATE student_registry
                     SET attended_lectures = attended_lectures + 1,
@@ -508,7 +531,7 @@ def api_verify_attendance():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({"success": False, "error": f"CRASH: {str(e)}"}), 200
+        return jsonify({"success": False, "error": "Internal server error. Check server logs."}), 500
 
 @app.route('/api/get_latest_notices', methods=['GET'])
 def api_get_latest_notices():
@@ -517,6 +540,7 @@ def api_get_latest_notices():
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         
         query = """
             SELECT id, subject_code, message, strftime('%Y-%m-%d %H:%M:%S', timestamp, 'localtime') as ts
@@ -540,6 +564,7 @@ def api_get_live_logs():
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         rows = conn.execute('''
             SELECT enrollment_id, token_submitted, expected_token, time_block_id,
                    client_timestamp, server_timestamp, status, detail
@@ -576,6 +601,7 @@ def api_get_live_tickets():
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         rows = conn.execute('''
             SELECT lt.id, lt.enrollment_id, lt.ticket_type, lt.reason, lt.status, lt.submitted_at, lt.attachment_path,
                    lt.start_date, lt.end_date, sr.student_name, sr.email
@@ -615,6 +641,7 @@ def api_query_student():
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         student = conn.execute("SELECT * FROM student_registry WHERE enrollment_id = ?", (enrollment_id,)).fetchone()
 
     if not student:
@@ -668,6 +695,7 @@ def api_commit_override():
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         student = conn.execute("SELECT * FROM student_registry WHERE enrollment_id = ?", (enrollment_id,)).fetchone()
         if not student:
             return jsonify({"error": f"Student '{enrollment_id}' not found."}), 404
@@ -694,6 +722,7 @@ def save_user_profile():
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM student_registry WHERE enrollment_id = ?", (uid,))
         exists = cursor.fetchone()[0]
@@ -723,6 +752,7 @@ def professor_cancel_class():
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         
         # 1. Insert into Live Notices table
         conn.execute("INSERT INTO broadcast_notices (subject_code, message, timestamp) VALUES (?, ?, CURRENT_TIMESTAMP)", (subject_code, body))
@@ -761,6 +791,7 @@ def professor_resolve_ticket():
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         if ticket_id:
             conn.execute("UPDATE leave_tickets SET status = ?, reviewed_at = ? WHERE id = ?", (new_status, time.time(), ticket_id))
         row = conn.execute("SELECT email FROM student_registry WHERE enrollment_id = ?", (enrollment_id,)).fetchone()
@@ -816,6 +847,7 @@ def student_submit_ticket():
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         if student_email:
             conn.execute("UPDATE student_registry SET email = ? WHERE enrollment_id = ?", (student_email, enrollment_id))
         
@@ -863,4 +895,4 @@ if __name__ == '__main__':
     print(f"[SUBNETTX] Database path: {DB_PATH}")
     print("[SUBNETTX] Server launching on http://127.0.0.1:5000")
     print("=" * 50)
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000, threaded=True)
