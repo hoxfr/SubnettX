@@ -267,6 +267,9 @@ def get_seconds_remaining():
 # =========================================
 # ROUTES
 # =========================================
+# ==========================================
+# ROUTING CONFIGURATION (Optimized by Rohit)
+# ==========================================
 @app.route('/')
 def index():
     return render_template('index.html')
