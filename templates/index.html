@@ -1305,6 +1305,45 @@
                 console.error('Session restoration error:', err);
             }
         })();
+    
+        /* =========================================
+           MAITRI SYNC ENGINE (DEMO)
+           ========================================= */
+        function generateMaitriReport() {
+            const d = document.getElementById('maitri-date').value;
+            const s = document.getElementById('maitri-subject').options[document.getElementById('maitri-subject').selectedIndex].text;
+            if(!d || !s) return alert("Select Date and Subject first.");
+            
+            document.getElementById('maitri-step1').classList.add('hidden');
+            document.getElementById('maitri-step2').classList.remove('hidden');
+            
+            document.getElementById('maitri-report-title').innerText = `${s} | ${d}`;
+            
+            const present = Math.floor(Math.random() * 8) + 48; 
+            document.getElementById('maitri-present').innerText = present;
+            document.getElementById('maitri-absent').innerText = 62 - present - 2;
+        }
+
+        function resetMaitriSync() {
+            document.getElementById('maitri-step2').classList.add('hidden');
+            document.getElementById('maitri-step1').classList.remove('hidden');
+            document.getElementById('btn-push-maitri').innerHTML = `<span>Add it on Maitri</span>`;
+            document.getElementById('btn-push-maitri').disabled = false;
+        }
+
+        function pushToMaitri() {
+            const btn = document.getElementById('btn-push-maitri');
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> <span>Syncing...</span>`;
+            
+            setTimeout(() => {
+                btn.innerHTML = `<span>&#10003; Synced</span>`;
+                alert("Success: The attendance has been successfully added on the Maitri portal.");
+                showToast("Maitri ERP sync complete.");
+                setTimeout(() => resetMaitriSync(), 3000);
+            }, 8000);
+        }
+
     </script>
 </body>
 </html>
