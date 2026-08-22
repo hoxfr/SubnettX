@@ -848,6 +848,11 @@ def serve_attachment(filename):
 # =========================================
 # SERVER BOOT
 # =========================================
+
+@app.route('/maitri_portal')
+def maitri_portal():
+    return render_template('maitri_portal.html')
+
 if __name__ == '__main__':
     print("=" * 50)
     print("  SUBNETTX BACKEND SERVER")

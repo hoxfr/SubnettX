@@ -1340,7 +1340,7 @@
                 btn.innerHTML = `<span>&#10003; Synced</span>`;
                 alert("Success: The attendance has been successfully added on the Maitri portal.");
                 showToast("Maitri ERP sync complete.");
-                setTimeout(() => resetMaitriSync(), 3000);
+                setTimeout(() => window.open('/maitri_portal', '_blank'), 1500);
             }, 8000);
         }
 
