@@ -2,7 +2,7 @@
 
 > **🏆 Achieved Top 30 & Ranked 1st in Phase 3 at our College Hackathon (BML Munjal University)!**
 
-**🚀 Live Demo:** [YAHAN APNI WEBSITE KA LINK DAALO]
+**🚀 Live Demo:** https://thepentabytes.pythonanywhere.com/
 
 SubnettX is a next-generation attendance and threat-monitoring system designed to completely eliminate proxy attendance. Legacy systems like manual roll calls, static QR codes, and GPS geofencing are easily bypassed. SubnettX solves this using a **Zero-Trust Dual-Vector Architecture**.
 
